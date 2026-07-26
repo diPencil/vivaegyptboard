@@ -550,6 +550,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     });
 
     Route::group(['prefix' => 'lead-contact'], function () {
+        Route::get('export', [\App\Http\Controllers\LeadExportController::class, 'export'])->name('lead-contact.export');
         Route::get('import', [LeadContactController::class, 'importLead'])->name('lead-contact.import');
         Route::post('import', [LeadContactController::class, 'importStore'])->name('lead-contact.import.store');
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');

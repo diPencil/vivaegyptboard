@@ -243,7 +243,10 @@ class LeadContactController extends AccountBaseController
         $leadContact->state = $request->state;
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
-        $leadContact->mobile = $request->mobile;
+        // Phone number: preserve as string, trim spaces, max length 30
+        $leadContact->mobile = $request->mobile ? mb_substr(trim($request->mobile), 0, 30) : null;
+        // Lead requirements
+        $leadContact->lead_requirements = $request->lead_requirements ? trim($request->lead_requirements) : null;
 
         if ($request->has('create_deal') && $request->create_deal == 'on') {
             Session::put('create_deal_with_lead', true);
@@ -378,7 +381,10 @@ class LeadContactController extends AccountBaseController
         $leadContact->state = $request->state;
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
-        $leadContact->mobile = $request->mobile;
+        // Phone number: preserve as string, trim spaces, max length 30
+        $leadContact->mobile = $request->mobile ? mb_substr(trim($request->mobile), 0, 30) : null;
+        // Lead requirements
+        $leadContact->lead_requirements = $request->lead_requirements ? trim($request->lead_requirements) : null;
         $leadContact->save();
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';

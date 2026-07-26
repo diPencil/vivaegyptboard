@@ -109,6 +109,11 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 {{-- Custom fields data --}}
                 <x-forms.custom-field-show :fields="$fields" :model="$deal"></x-forms.custom-field-show>
 
+                <div class="col-12 px-0 pb-3">
+                    <p class="mb-0 text-lightest f-14">@lang('modules.lead.leadRequirements')</p>
+                    <p class="mb-0 text-dark-grey f-14">{!! nl2br(e($deal->contact->lead_requirements ?? '--')) !!}</p>
+                </div>
+
             </x-cards.data>
 
             <div class="bg-additional-grey rounded my-3">

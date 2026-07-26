@@ -75,7 +75,20 @@
 
             <x-cards.data-row :label="__('modules.lead.website')" :value="$leadContact->website ?? '--'" />
 
-            <x-cards.data-row :label="__('modules.lead.mobile')" :value="$leadContact->mobile ?? '--'" />
+            <div class="col-12 px-0 pb-3 d-block d-lg-flex d-md-flex">
+                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">@lang('modules.lead.mobile')</p>
+                <p class="mb-0 text-dark-grey f-14 ">
+                    @if($leadContact->mobile)
+                        <a href="tel:{{ $leadContact->mobile }}">{{ $leadContact->mobile }}</a>
+                    @else
+                        --
+                    @endif
+                </p>
+            </div>
+
+            <x-cards.data-row :label="__('modules.lead.leadCategory')" :value="$leadContact->category?->category_name ?? '--'" />
+
+            <x-cards.data-row :label="__('modules.lead.leadRequirements')" :value="$leadContact->lead_requirements ?? '--'" />
 
             <x-cards.data-row :label="__('modules.client.officePhoneNumber')" :value="$leadContact->office ?? '--'" />
 

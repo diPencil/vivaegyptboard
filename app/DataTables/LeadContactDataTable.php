@@ -108,6 +108,8 @@ class LeadContactDataTable extends BaseDataTable
         $datatables->editColumn('lead_owner', fn($row) => $row->lead_owner ? view('components.employee', ['user' => $row->leadOwner]) : '--');
         $datatables->addColumn('email', fn($row) => $row->client_email);
         $datatables->addColumn('export_mobile', fn($row) => $row->mobile ?? '--');
+        $datatables->addColumn('export_lead_requirements', fn($row) => $row->lead_requirements ?? '--');
+        $datatables->addColumn('export_category', fn($row) => $row->category_name ?? '--');
 
         $datatables->editColumn('client_name', function ($row) {
             $label = '';
@@ -160,11 +162,14 @@ class LeadContactDataTable extends BaseDataTable
                 'leads.client_email',
                 'leads.company_name',
                 'leads.mobile',
+                'leads.lead_requirements',
+                'lead_category.category_name as category_name',
                 'leads.created_at',
                 'leads.updated_at',
                 'lead_sources.type as source',
             )
-            ->leftJoin('lead_sources', 'lead_sources.id', 'leads.source_id');
+            ->leftJoin('lead_sources', 'lead_sources.id', 'leads.source_id')
+            ->leftJoin('lead_category', 'lead_category.id', 'leads.category_id');
         if ($this->request()->type != 'all' && $this->request()->type != '') {
 
             if ($this->request()->type == 'lead') {
@@ -262,7 +267,14 @@ class LeadContactDataTable extends BaseDataTable
             ]);
 
         if (canDataTableExport()) {
-            $dataTable->buttons(Button::make(['extend' => 'excel', 'text' => '<i class="fa fa-file-export"></i> ' . trans('app.exportExcel')]));
+            // Replace client-side excel export with a single secure server-side export button
+            $exportUrl = route('lead-contact.export');
+            $dataTable->buttons(
+                Button::make([
+                    'text' => '<i class="fa fa-file-export"></i> ' . trans('modules.lead.secureExport'),
+                    'action' => "function(e, dt, node, config) { var params = $.param(dt.ajax.params()); window.location = '{$exportUrl}?' + params; }"
+                ])
+            );
         }
 
         return $dataTable;
@@ -291,6 +303,8 @@ class LeadContactDataTable extends BaseDataTable
             __('app.email') . ' ' . __('modules.lead.email') => ['data' => 'export_email', 'name' => 'email', 'title' => __('app.lead') . ' ' . __('modules.lead.email'), 'exportable' => true, 'visible' => false],
             __('modules.lead.email') => ['data' => 'email', 'name' => 'leads.client_email', 'exportable' => false, 'title' => __('modules.lead.email')],
             __('app.lead') . ' ' . __('modules.lead.mobile') => ['data' => 'export_mobile', 'name' => 'mobile', 'title' => __('app.lead') . ' ' . __('modules.lead.mobile'), 'exportable' => true, 'visible' => false],
+            __('modules.lead.leadCategory') => ['data' => 'export_category', 'name' => 'lead_category.category_name', 'title' => __('modules.lead.leadCategory'), 'exportable' => true, 'visible' => false],
+            __('modules.lead.leadRequirements') => ['data' => 'export_lead_requirements', 'name' => 'lead_requirements', 'title' => __('modules.lead.leadRequirements'), 'exportable' => true, 'visible' => false],
             __('app.owner') => ['data' => 'lead_owner', 'name' => 'lead_owner', 'exportable' => true, 'title' => __('app.owner')],
             __('app.addedBy') => ['data' => 'added_by', 'name' => 'added_by', 'exportable' => true, 'title' => __('app.addedBy')],
             __('app.createdOn') => ['data' => 'created_at', 'name' => 'leads.created_at', 'title' => __('app.createdOn')],

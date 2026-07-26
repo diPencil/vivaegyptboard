@@ -93,6 +93,7 @@ class ImportLeadJob implements ShouldQueue
                 $lead->company_name = $this->isColumnExists('company_name') ? $this->getColumnValue('company_name') : null;
                 $lead->website = $this->isColumnExists('company_website') ? $this->getColumnValue('company_website') : null;
                 $lead->mobile = $this->isColumnExists('mobile') ? $this->getColumnValue('mobile') : null;
+                $lead->lead_requirements = $this->isColumnExists('lead_requirements') ? $this->getColumnValue('lead_requirements') : null;
                 $lead->office = $this->isColumnExists('company_phone') ? $this->getColumnValue('company_phone') : null;
                 $lead->country = $this->isColumnExists('country') ? $this->getColumnValue('country') : null;
                 $lead->state = $this->isColumnExists('state') ? $this->getColumnValue('state') : null;

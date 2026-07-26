@@ -108,7 +108,7 @@
                               value="<a href='{{ route('lead-contact.show', $deal->contact->id) }}' class='text-darkest-grey'> {{ $deal->contact->client_name_salutation }}</a>"/>
 
             <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'"/>
-            <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile ?? '--'"/>
+            <x-cards.data-row :label="__('modules.lead.mobile')" :value="($deal->contact->mobile) ? '<a href=\'tel:' . $deal->contact->mobile . '\'>' . $deal->contact->mobile . '</a>' : '--'"/>
 
             <x-cards.data-row :label="__('modules.lead.companyName')"
                               :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'"/>

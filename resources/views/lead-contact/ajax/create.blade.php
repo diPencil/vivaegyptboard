@@ -300,6 +300,10 @@ $addDealPermission = user()->permission('add_deals');
                         </div>
                     </div>
 
+                    <div class="col-md-12">
+                        <x-forms.textarea :fieldLabel="__('modules.lead.leadRequirements')" fieldName="lead_requirements" fieldId="lead_requirements" :fieldPlaceholder="__('modules.lead.enterCustomerRequirements')"></x-forms.textarea>
+                    </div>
+
                     <x-forms.custom-field :fields="$fields" class="col-md-12"></x-forms.custom-field>
 
 

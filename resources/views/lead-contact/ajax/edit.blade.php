@@ -151,6 +151,10 @@ $addProductPermission = user()->permission('add_product');
                         </div>
                     </div>
 
+                    <div class="col-md-12">
+                        <x-forms.textarea :fieldLabel="__('modules.lead.leadRequirements')" fieldName="lead_requirements" fieldId="lead_requirements" :fieldPlaceholder="__('modules.lead.enterCustomerRequirements')" :fieldValue="$leadContact->lead_requirements ?? ''"></x-forms.textarea>
+                    </div>
+
                 </div>
                     <x-forms.custom-field :fields="$fields" :model="$leadContact"></x-forms.custom-field>
                 <x-form-actions>

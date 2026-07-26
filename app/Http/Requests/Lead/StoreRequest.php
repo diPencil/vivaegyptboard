@@ -31,6 +31,8 @@ class StoreRequest extends CoreRequest
 
         $rules['client_name'] = 'required';
         $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . company()->id;
+        $rules['mobile'] = 'nullable|string|max:30';
+        $rules['lead_requirements'] = 'nullable|string|max:5000';
 
         if (request()->has('create_deal') && request()->create_deal == 'on') {
             $rules['name'] = 'required';

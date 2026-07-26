@@ -1630,6 +1630,7 @@ return array(
         'leadForm' => 'Lead Form',
         'iframeSnippet' => 'Copy & Paste the code anywhere in your site to show the form, additionally you can adjust the width and height px to fit your website.',
         'leadCategory' => 'Lead Category',
+        'secureExport' => 'Secure Export',
         'visibleToLead' => 'Visible To Lead',
         'leadEmailInfo' => 'Email will be used to send proposals.',
         'convertedLead' => 'Converted Leads',
