@@ -282,7 +282,7 @@ trait EmployeeDashboard
             ->select('id', 'office_start_time', 'office_end_time')
             ->first();
 
-                $Utc = now(company()->timezone)->format('p');
+        $Utc = now(company()->timezone)->format('p');
         $this->shiftStartDateTime = $officeStartTime;
         $this->shiftEndDateTime = $officeEndTime;
 
