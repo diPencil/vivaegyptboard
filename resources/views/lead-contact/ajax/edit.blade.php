@@ -33,6 +33,11 @@ $addProductPermission = user()->permission('add_product');
                     </div>
 
                     <div class="col-lg-4 col-md-6">
+                        <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                           :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile"></x-forms.tel>
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
                         <x-forms.email fieldId="client_email" :fieldLabel="__('app.email')"
                             fieldName="client_email" :fieldPlaceholder="__('placeholders.email')"
                             :fieldValue="$leadContact->client_email" :fieldHelp="__('modules.lead.leadEmailInfo')">
@@ -64,6 +69,42 @@ $addProductPermission = user()->permission('add_product');
                         </div>
                     @endif
 
+                    @if ($viewLeadCategoryPermission != 'none')
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.label class="my-3" fieldId="category_id" :fieldLabel="__('modules.lead.leadCategory')">
+                            </x-forms.label>
+                            <x-forms.input-group>
+                                <select class="form-control select-picker" name="category_id" id="category_id"
+                                    data-live-search="true">
+                                    <option value="">--</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->id }}" @if($leadContact->category_id == $category->id) selected @endif>{{ $category->category_name }}</option>
+                                    @endforeach
+                                </select>
+
+                                @if ($addLeadCategoryPermission == 'all' || $addLeadCategoryPermission == 'added')
+                                    <x-slot name="append">
+                                        <button type="button"
+                                            class="btn btn-outline-secondary border-grey add-lead-category"
+                                            data-toggle="tooltip" data-original-title="{{ __('app.add').' '.__('modules.lead.leadCategory') }}">
+                                            @lang('app.add')</button>
+                                    </x-slot>
+                                @endif
+                            </x-forms.input-group>
+                        </div>
+                    @endif
+
+                    @if (isset($addPermission) && $addPermission == 'all')
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.select fieldId="added_by" :fieldLabel="__('app.added').' '.__('app.by')" fieldName="added_by">
+                                <option value="">--</option>
+                                @foreach ($employees as $item)
+                                    <x-user-option :user="$item" :selected="($leadContact->added_by == $item->id)" />
+                                @endforeach
+                            </x-forms.select>
+                        </div>
+                    @endif
+
                     <div class="col-lg-4 col-md-6">
                         <x-forms.select fieldId="lead_owner" :fieldLabel="__('app.owner')" fieldName="lead_owner">
                             <option value="">--</option>
@@ -73,6 +114,12 @@ $addProductPermission = user()->permission('add_product');
                         </x-forms.select>
                     </div>
 
+                </div>
+
+                <div class="row p-20">
+                    <div class="col-md-12">
+                        <x-forms.textarea :fieldLabel="__('modules.lead.leadRequirements')" fieldName="lead_requirements" fieldId="lead_requirements" :fieldPlaceholder="__('modules.lead.enterCustomerRequirements')" :fieldValue="$leadContact->lead_requirements ?? ''"></x-forms.textarea>
+                    </div>
                 </div>
 
                 <div class="row p-20">
@@ -88,38 +135,36 @@ $addProductPermission = user()->permission('add_product');
                 </div>
 
                 <h4 class="mb-0 p-20 f-21 font-weight-normal  border-top-grey">
-                    @lang('modules.lead.companyDetails')</h4>
+                    <a href="javascript:;" class="text-dark toggle-other-details"><i class="fa fa-chevron-down"></i>
+                        @lang('modules.lead.companyDetails')</a>
+                </h4>
 
 
-                <div class="row p-20">
+                <div class="row p-20 d-none" id="other-details">
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text :fieldLabel="__('modules.lead.companyName')" fieldName="company_name"
                             fieldId="company_name" :fieldPlaceholder="__('placeholders.company')"
-                            :fieldValue="$leadContact->company_name" />
+                            :fieldValue="($leadContact->company_name) ? $leadContact->company_name : company()->company_name" />
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text :fieldLabel="__('modules.lead.website')" fieldName="website" fieldId="website"
-                            :fieldPlaceholder="__('placeholders.website')" :fieldValue="$leadContact->website" />
-                    </div>
-
-                    <div class="col-lg-3 col-md-6">
-                        <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                           :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile"></x-forms.tel>
+                            :fieldPlaceholder="__('placeholders.website')" :fieldValue="($leadContact->website) ? $leadContact->website : company()->website" />
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text :fieldLabel="__('modules.client.officePhoneNumber')" fieldName="office"
-                            fieldId="office" fieldPlaceholder="" :fieldValue="$leadContact->office" />
+                            fieldId="office" fieldPlaceholder="" :fieldValue="($leadContact->office) ? $leadContact->office : company()->company_phone" />
                     </div>
+                    
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.select fieldId="country" :fieldLabel="__('app.country')" fieldName="country"
                             search="true">
                             <option value="">--</option>
                             @foreach ($countries as $item)
-                                <option @if ($leadContact->country == $item->nicename) selected @endif data-tokens="{{ $item->iso3 }}"
+                                <option @if (($leadContact->country ?: (company()->defaultAddress ? company()->defaultAddress->country : '')) == $item->nicename) selected @endif data-tokens="{{ $item->iso3 }}"
                                     data-content="<span class='flag-icon flag-icon-{{ strtolower($item->iso) }} flag-icon-squared'></span> {{ $item->nicename }}"
                                     value="{{ $item->nicename }}">{{ $item->nicename }}</option>
                             @endforeach
@@ -128,31 +173,27 @@ $addProductPermission = user()->permission('add_product');
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text :fieldLabel="__('modules.stripeCustomerAddress.state')" fieldName="state"
-                            fieldId="state" :fieldPlaceholder="__('placeholders.state')" :fieldValue="$leadContact->state" />
+                            fieldId="state" :fieldPlaceholder="__('placeholders.state')" :fieldValue="($leadContact->state) ? $leadContact->state : (company()->defaultAddress ? company()->defaultAddress->state : '')" />
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text :fieldLabel="__('modules.stripeCustomerAddress.city')" fieldName="city" :fieldValue="$leadContact->city"
+                        <x-forms.text :fieldLabel="__('modules.stripeCustomerAddress.city')" fieldName="city" :fieldValue="($leadContact->city) ? $leadContact->city : (company()->defaultAddress ? company()->defaultAddress->city : '')"
                             fieldId="city" :fieldPlaceholder="__('placeholders.city')" />
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text :fieldLabel="__('modules.stripeCustomerAddress.postalCode')"
                             fieldName="postal_code" fieldId="postal_code" :fieldPlaceholder="__('placeholders.postalCode')"
-                            :fieldValue="$leadContact->postal_code" />
+                            :fieldValue="($leadContact->postal_code) ? $leadContact->postal_code : (company()->defaultAddress ? company()->defaultAddress->postal_code : '')" />
                     </div>
 
                     <div class="col-md-12">
                         <div class="form-group my-3">
                             <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.address')"
                                 fieldName="address" fieldId="address" :fieldPlaceholder="__('placeholders.address')"
-                                :fieldValue="$leadContact->address">
+                                :fieldValue="($leadContact->address) ? $leadContact->address : company()->address">
                             </x-forms.textarea>
                         </div>
-                    </div>
-
-                    <div class="col-md-12">
-                        <x-forms.textarea :fieldLabel="__('modules.lead.leadRequirements')" fieldName="lead_requirements" fieldId="lead_requirements" :fieldPlaceholder="__('modules.lead.enterCustomerRequirements')" :fieldValue="$leadContact->lead_requirements ?? ''"></x-forms.textarea>
                     </div>
 
                 </div>
@@ -280,6 +321,14 @@ $addProductPermission = user()->permission('add_product');
         <x-forms.custom-field-filejs/>
 
         init(RIGHT_MODAL);
+
+        // Ensure mobile input is LTR and deal name follows lead name when empty
+        $('#mobile').attr('dir', 'ltr');
+        $('#client_name').on('input', function () {
+            if ($('#name').val().trim() === '') {
+                $('#name').val($(this).val());
+            }
+        });
     });
 
     function checkboxChange(parentClass, id){

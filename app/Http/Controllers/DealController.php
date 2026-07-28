@@ -94,7 +94,7 @@ class DealController extends AccountBaseController
         $this->pipelines = LeadPipeline::all();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $this->stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         $this->sources = LeadSource::all();
     }
 
@@ -290,7 +290,7 @@ class DealController extends AccountBaseController
         $this->products = Product::all();
         $this->sources = LeadSource::all();
         $this->stages = PipelineStage::all();
-        $this->categories = LeadCategory::query();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC');
 
         if ($this->viewLeadCategoryPermission == 'added') {
             $this->categories->where('added_by', user()->id);
@@ -431,7 +431,7 @@ class DealController extends AccountBaseController
             $this->fields = $getCustomFieldGroupsWithFields->fields;
         }
 
-        $this->categories = LeadCategory::query();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC');
 
         if ($this->viewLeadCategoryPermission == 'added') {
             $this->categories->where('added_by', user()->id);

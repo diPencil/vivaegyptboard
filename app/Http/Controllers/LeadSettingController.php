@@ -36,7 +36,7 @@ class LeadSettingController extends AccountBaseController
         $this->leadSources = LeadSource::all();
         $this->leadStages = PipelineStage::all();
         $this->leadAgents = User::whereHas('leadAgent')->with('leadAgent', 'employeeDetail.designation:id,name')->get();
-        $this->leadCategories = LeadCategory::all();
+        $this->leadCategories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         $this->leadSettings = LeadSetting::select('status')->first();
 
         $this->employees = User::doesntHave('leadAgent')

@@ -72,7 +72,7 @@ class LeadContactController extends AccountBaseController
 
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
 
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
 
@@ -184,7 +184,7 @@ class LeadContactController extends AccountBaseController
         }
 
         $this->sources = LeadSource::all();
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         $this->countries = countries();
         $this->salutations = Salutation::cases();
 
@@ -330,7 +330,7 @@ class LeadContactController extends AccountBaseController
         }
 
         $this->sources = LeadSource::all();
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         $this->countries = countries();
 
         $this->pageTitle = __('modules.leadContact.updateTitle');

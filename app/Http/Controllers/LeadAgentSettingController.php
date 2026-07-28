@@ -134,7 +134,7 @@ class LeadAgentSettingController extends AccountBaseController
         }
         else
         {
-            $leadCategory = LeadCategory::all();
+            $leadCategory = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
 
             return Reply::dataOnly(['data' => $leadCategory]);
         }

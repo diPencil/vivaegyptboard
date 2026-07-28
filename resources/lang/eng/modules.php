@@ -187,6 +187,7 @@ return array(
         'salutation' => 'Salutation',
         'productName' => 'Product Name',
     ),
+    
     'credit-notes' => array(
         'currency' => 'Currency',
         'creditNoteDate' => 'Credit Note Date',
@@ -1584,6 +1585,8 @@ return array(
     ),
     'lead' => array(
         'createTitle' => 'Add Lead Info',
+        'leadRequirements' => 'Lead Requirements',
+        'enterCustomerRequirements' => 'Enter the customer requirements and requested service',
         'companyDetails' => 'Company Details',
         'companyName' => 'Company Name',
         'website' => 'Website',

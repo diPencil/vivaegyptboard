@@ -22,8 +22,32 @@ class UpdateLeadCategory extends FormRequest
      */
     public function rules(): array
     {
+        $company = company();
+        $companyId = $company ? $company->id : null;
+
+        $currentId = $this->route('leadCategory') ?: $this->route('id');
+
         return [
-            'category_name' => 'required|unique:lead_category,category_name,'. $this->route('leadCategory').',id,company_id,' . company()->id,
+            'category_name' => [
+                'required',
+                function ($attribute, $value, $fail) use ($companyId, $currentId) {
+                    $normalized = mb_strtolower(trim($value));
+                    $query = \DB::table('lead_category')
+                        ->whereRaw('LOWER(category_name) = ?', [$normalized])
+                        ->where(function ($q) use ($companyId) {
+                            $q->where('company_id', $companyId)
+                                ->orWhereNull('company_id');
+                        });
+
+                    if ($currentId) {
+                        $query->where('id', '<>', $currentId);
+                    }
+
+                    if ($query->exists()) {
+                        $fail(trans('validation.unique', ['attribute' => $attribute]));
+                    }
+                }
+            ],
         ];
     }
 

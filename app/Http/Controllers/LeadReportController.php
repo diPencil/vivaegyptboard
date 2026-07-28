@@ -140,7 +140,7 @@ class LeadReportController extends AccountBaseController
         $this->currentYear = now()->format('Y');
         $this->currentMonth = now()->month;
         $this->pipelines = LeadPipeline::all();
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
 
         $defaultPipelineId = $this->pipelines->filter(function ($value) {
             return $value->default == 1;

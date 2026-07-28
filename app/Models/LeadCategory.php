@@ -33,6 +33,25 @@ class LeadCategory extends BaseModel
 
     use HasCompany;
 
+    /**
+     * Scope to return categories visible to a given company.
+     * Includes company-specific categories and global categories (company_id IS NULL).
+     * If $companyId is null, return all categories (super-admin / console).
+     */
+    public function scopeVisibleToCompany($query, $companyId)
+    {
+        if (is_null($companyId)) {
+            return $query;
+        }
+
+        // remove the default CompanyScope so we can include global (NULL company_id) rows
+        return $query->withoutGlobalScope(\App\Scopes\CompanyScope::class)
+            ->where(function ($q) use ($companyId) {
+                $q->where($this->getTable() . '.company_id', $companyId)
+                    ->orWhereNull($this->getTable() . '.company_id');
+            });
+    }
+
     protected $table = 'lead_category';
     protected $default = ['id', 'category_name'];
 
