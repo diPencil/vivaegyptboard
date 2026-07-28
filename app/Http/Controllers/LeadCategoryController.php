@@ -19,8 +19,7 @@ class LeadCategoryController extends AccountBaseController
     {
         $viewPermission = user()->permission('add_lead_category');
         abort_403(!in_array($viewPermission, ['all', 'added']));
-
-        $this->categories = LeadCategory::all();
+        $this->categories = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         return view('lead-settings.create-category-modal', $this->data);
     }
 
@@ -35,14 +34,21 @@ class LeadCategoryController extends AccountBaseController
 
         $category = new LeadCategory();
         $category->category_name = $request->category_name;
+        // assign to current company when creating a category from company UI
+        $category->company_id = company()?->id;
+        $category->added_by = user()?->id;
         $category->save();
 
-        $categoryData = LeadCategory::all();
+        $categoryData = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         $list = '<option value="">--</option>';
-
+        $seen = [];
         foreach ($categoryData as $item) {
-            $list .= '<option selected
-                value="' . $item->id . '"> ' . $item->category_name . ' </option>';
+            $norm = mb_strtolower(trim($item->category_name));
+            if (isset($seen[$norm])) {
+                continue;
+            }
+            $seen[$norm] = true;
+            $list .= '<option selected value="' . $item->id . '"> ' . $item->category_name . ' </option>';
         }
 
         return Reply::successWithData(__('messages.recordSaved'), ['data' => $list]);
@@ -58,6 +64,10 @@ class LeadCategoryController extends AccountBaseController
     public function edit($id)
     {
         $this->category = LeadCategory::findOrFail($id);
+        // Prevent company users from editing global categories
+        if ($this->category->company_id === null && company()) {
+            abort_403();
+        }
         $this->editPermission = user()->permission('edit_lead_category');
         abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $this->category->added_by == user()->id)));
 
@@ -75,14 +85,17 @@ class LeadCategoryController extends AccountBaseController
     public function update(UpdateLeadCategory $request, $id)
     {
         $category = LeadCategory::findOrFail($id);
+        if ($category->company_id === null && company()) {
+            abort_403();
+        }
         $this->editPermission = user()->permission('edit_lead_category');
         abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $this->category->added_by == user()->id)));
 
         $category->category_name = $request->category_name;
         $category->save();
 
-        $categoryData = LeadCategory::all();
-        return Reply::successWithData(__('messages.recordSaved'), ['data' => $categoryData]);
+                $categoryData = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
+                return Reply::successWithData(__('messages.recordSaved'), ['data' => $categoryData]);
 
     }
 
@@ -95,12 +108,15 @@ class LeadCategoryController extends AccountBaseController
     public function destroy($id)
     {
         $category = LeadCategory::findOrFail($id);
+        if ($category->company_id === null && company()) {
+            abort_403();
+        }
         $this->deletePermission = user()->permission('delete_lead_category');
 
         abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $category->added_by == user()->id)));
 
         LeadCategory::destroy($id);
-        $categoryData = LeadCategory::all();
+        $categoryData = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         return Reply::successWithData(__('messages.deleteSuccess'), ['data' => $categoryData]);
 
     }
@@ -113,7 +129,7 @@ class LeadCategoryController extends AccountBaseController
         $category->is_default = 1;
         $category->save();
 
-        $categoryData = LeadCategory::all();
+        $categoryData = LeadCategory::visibleToCompany(company()?->id)->orderByRaw('company_id IS NULL ASC')->get();
         return Reply::successWithData(__('messages.recordSaved'), ['data' => $categoryData]);
 
     }
