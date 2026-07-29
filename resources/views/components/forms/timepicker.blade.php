@@ -1,3 +1,15 @@
+@props([
+    'fieldId',
+    'fieldLabel',
+    'fieldName',
+    'fieldValue' => '',
+    'fieldPlaceholder' => '',
+    'fieldRequired' => false,
+    'fieldReadOnly' => false,
+    'fieldHelp' => '',
+    'popover' => ''
+])
+
 <div {{ $attributes->merge(['class' => 'bootstrap-timepicker timepicker form-group my-3']) }}>
     <x-forms.label :fieldId="$fieldId" :fieldLabel="$fieldLabel" :fieldRequired="$fieldRequired" :popover="$popover"></x-forms.label>
 

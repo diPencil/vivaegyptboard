@@ -48,7 +48,7 @@
                 <div class="col-sm-12 roster-shift-block" style="display: none;">
                     <x-forms.select fieldName="employee_shift_id" fieldId="employee_shift_id" :fieldLabel="__('modules.attendance.shift')">
                         @foreach ($employeeShifts as $item)
-                            @if($item->office_open_days == '' || in_array($day, json_decode($item->office_open_days)))
+                            @if($item->office_open_days == '' || in_array($day, json_decode($item->office_open_days, true) ?? []))
                                 @if ($item->shift_type == 'strict')
                                 <option data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}"
                                     {{ !is_null($shiftSchedule) && $shiftSchedule->employee_shift_id == $item->id ? 'selected' : '' }}
