@@ -50,13 +50,13 @@
                         @foreach ($employeeShifts as $item)
                             @if($item->office_open_days == '' || in_array($day, json_decode($item->office_open_days, true) ?? []))
                                 @if ($item->shift_type == 'strict')
-                                <option data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}"
-                                    {{ !is_null($shiftSchedule) && $shiftSchedule->employee_shift_id == $item->id ? 'selected' : '' }}
-                                    value="{{ $item->id }}">{{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}</option>                                    
+                                  <option data-is-day-off="{{ $item->shift_name == 'Day Off' ? '1' : '0' }}" data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}"
+                                      {{ !is_null($shiftSchedule) && $shiftSchedule->employee_shift_id == $item->id ? 'selected' : '' }}
+                                      value="{{ $item->id }}">{{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}</option>                                    
                                 @else
-                                <option data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->flexible_total_hours.' '.__('app.hrs').']' : ''}}"
-                                    {{ !is_null($shiftSchedule) && $shiftSchedule->employee_shift_id == $item->id ? 'selected' : '' }}
-                                    value="{{ $item->id }}">{{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}</option>
+                                  <option data-is-day-off="{{ $item->shift_name == 'Day Off' ? '1' : '0' }}" data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->flexible_total_hours.' '.__('app.hrs').']' : ''}}"
+                                      {{ !is_null($shiftSchedule) && $shiftSchedule->employee_shift_id == $item->id ? 'selected' : '' }}
+                                      value="{{ $item->id }}">{{ ($item->shift_name != 'Day Off') ? $item->shift_name : __('modules.attendance.' . str($item->shift_name)->camel()) }} {{ ($item->shift_name != 'Day Off') ? ' ['.$item->office_start_time.' - '.$item->office_end_time.']' : ''}}</option>
 
                                 @endif
                             @endif
@@ -133,6 +133,38 @@
     $(document).ready(function() {
         function updateRosterVisibility(){
             var status = $('#status_type').val();
+            
+            // Handle Employee Shift Dropdown Options
+            var shiftSelect = $('#employee_shift_id');
+            var hasWorkingShiftSelected = false;
+
+            shiftSelect.find('option').each(function() {
+                var isDayOff = $(this).attr('data-is-day-off') === '1';
+                if (status === 'working_shift') {
+                    if (isDayOff) {
+                        $(this).prop('disabled', true);
+                    } else {
+                        $(this).prop('disabled', false);
+                        if ($(this).is(':selected')) {
+                            hasWorkingShiftSelected = true;
+                        }
+                    }
+                } else {
+                    $(this).prop('disabled', false);
+                }
+            });
+
+            if (status === 'working_shift' && !hasWorkingShiftSelected) {
+                var firstValid = shiftSelect.find('option:not(:disabled):first').val();
+                if (firstValid) {
+                    shiftSelect.val(firstValid);
+                }
+            }
+            
+            if (shiftSelect.hasClass('selectpicker')) {
+                shiftSelect.selectpicker('refresh');
+            }
+
             if(status === 'working_shift'){
                 $('.roster-shift-block').show();
                 $('.roster-details').hide();
