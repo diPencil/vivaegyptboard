@@ -2418,4 +2418,7 @@ return array(
         'assignmentStart' => 'Assignment Start Time',
         'assignmentEnd' => 'Assignment End Time',
         'assignmentLocation' => 'Assignment Location',
+        'dayOff' => 'Day Off',
+        'halfDay' => 'Half Day',
+        'approvedBy' => 'Approved By',
 );
