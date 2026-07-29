@@ -63,7 +63,11 @@ class LeadListener
         $admins = $admins->unique('id');
 
         if (!session('is_imported')) {
-            Notification::send($admins, new NewLeadCreated($event->leadContact));
+            try {
+                Notification::send($admins, new NewLeadCreated($event->leadContact));
+            } catch (\Exception $e) {
+                \Log::error('Lead notification failed: ' . $e->getMessage());
+            }
         }
     }
 

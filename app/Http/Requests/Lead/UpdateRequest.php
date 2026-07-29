@@ -29,7 +29,7 @@ class UpdateRequest extends CoreRequest
         $rules = [
             'client_name' => 'required',
             'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
-            'mobile' => 'nullable|string|max:30',
+            'mobile' => 'required|string|max:30',
             'lead_requirements' => 'nullable|string|max:5000',
         ];
 

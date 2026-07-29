@@ -36,7 +36,7 @@ $addDealPermission = user()->permission('add_deals');
 
                     <div class="col-lg-4 col-md-6">
                         <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                           :fieldPlaceholder="__('placeholders.mobile')"></x-forms.tel>
+                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"></x-forms.tel>
                     </div>
 
                     <div class="col-lg-4 col-md-6">

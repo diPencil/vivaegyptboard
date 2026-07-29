@@ -214,8 +214,16 @@ class LeadContactController extends AccountBaseController
     public function store(StoreRequest $request)
     {
         $this->addPermission = user()->permission('add_lead');
+        
+        if (!in_array($this->addPermission, ['all', 'added'])) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
 
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        if ($request->has('create_deal') && $request->create_deal == 'on') {
+            if (!in_array(user()->permission('add_deals'), ['all', 'added'])) {
+                return Reply::error(__('messages.permissionDenied'));
+            }
+        }
 
         $existingUser = User::select('id')
             ->whereHas('roles', function ($q) {
@@ -498,10 +506,8 @@ class LeadContactController extends AccountBaseController
         }
     }
 
-    public function storeDeal($request, $leadContact)
+    private function storeDeal($request, $leadContact)
     {
-        $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
         $agentId = null;
 
         if (!is_null($request->agent_id)) {
