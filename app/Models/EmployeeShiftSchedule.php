@@ -83,6 +83,11 @@ class EmployeeShiftSchedule extends BaseModel
         return $this->belongsTo(EmployeeShift::class, 'employee_shift_id');
     }
 
+    public function leave(): BelongsTo
+    {
+        return $this->belongsTo(Leave::class, 'leave_id');
+    }
+
     public function requestChange(): HasOne
     {
         return $this->hasOne(EmployeeShiftChangeRequest::class, 'shift_schedule_id');

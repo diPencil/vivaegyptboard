@@ -1,6 +1,6 @@
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">
-        @lang('app.updateShift')
+        @lang('modules.updateEmployeeSchedule')
     </h5>
     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
             aria-hidden="true">×</span></button>
@@ -33,6 +33,19 @@
                 </div>
             @else
                 <div class="col-sm-12">
+                    <x-forms.select fieldName="status_type" fieldId="status_type" :fieldLabel="__('modules.dayStatus')">
+                        <option value="working_shift" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'working_shift' ? 'selected' : '' }}>@lang('modules.workingShift')</option>
+                        <option value="day_off" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'day_off' ? 'selected' : '' }}>@lang('modules.dayOff')</option>
+                        <option value="unauthorized_absence" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'unauthorized_absence' ? 'selected' : '' }}>@lang('modules.unauthorizedAbsence')</option>
+                        <option value="half_day" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'half_day' ? 'selected' : '' }}>@lang('modules.halfDay')</option>
+                        <option value="early_departure" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'early_departure' ? 'selected' : '' }}>@lang('modules.earlyDeparture')</option>
+                        <option value="late_arrival" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'late_arrival' ? 'selected' : '' }}>@lang('modules.lateArrival')</option>
+                        <option value="external_assignment" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'external_assignment' ? 'selected' : '' }}>@lang('modules.externalAssignment')</option>
+                    </x-forms.select>
+
+                </div>
+
+                <div class="col-sm-12 roster-shift-block" style="display: none;">
                     <x-forms.select fieldName="employee_shift_id" fieldId="employee_shift_id" :fieldLabel="__('modules.attendance.shift')">
                         @foreach ($employeeShifts as $item)
                             @if($item->office_open_days == '' || in_array($day, json_decode($item->office_open_days)))
@@ -50,8 +63,44 @@
                         @endforeach
                     </x-forms.select>
                 </div>
-                <div class="col-sm-12">
-                    <x-forms.textarea fieldName="remarks" fieldId="remarks" :fieldLabel="__('app.remark')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->remarks : ''" />
+                <div class="col-sm-12 roster-details" style="display:none;">
+                    <div class="row">
+                        <div class="col-sm-12 mt-2">
+                            <x-forms.text fieldName="reason" fieldId="reason" :fieldLabel="__('app.reason')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->reason : ''" />
+                        </div>
+                        <div class="col-sm-6 mt-2">
+                            <x-forms.select fieldName="approved_by" fieldId="approved_by" :fieldLabel="__('modules.approvedBy')">
+                                <option value="">--</option>
+                                @foreach($users as $u)
+                                    <option value="{{ $u->id }}" {{ !is_null($shiftSchedule) && $shiftSchedule->approved_by == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                                @endforeach
+                            </x-forms.select>
+                        </div>
+                        <div class="col-sm-12 mt-2 assignment-location" style="display:none;">
+                            <x-forms.text fieldName="assignment_location" fieldId="assignment_location" :fieldLabel="__('modules.assignmentLocation')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->assignment_location : ''" />
+                        </div>
+                        <div class="col-sm-6 mt-2 assignment-time" style="display:none;">
+                            <x-forms.timepicker fieldName="assignment_start_time" fieldId="assignment_start_time" :fieldLabel="__('modules.assignmentStart')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->assignment_start_time : ''" />
+                        </div>
+                        <div class="col-sm-6 mt-2 assignment-time" style="display:none;">
+                            <x-forms.timepicker fieldName="assignment_end_time" fieldId="assignment_end_time" :fieldLabel="__('modules.assignmentEnd')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->assignment_end_time : ''" />
+                        </div>
+                        <div class="col-sm-6 mt-2 half-day-block" style="display:none;">
+                            <x-forms.select fieldName="half_day_period" fieldId="half_day_period" :fieldLabel="__('modules.halfDay')">
+                                <option value="first_half">{{ __('modules.halfDayFirst') }}</option>
+                                <option value="second_half">{{ __('modules.halfDaySecond') }}</option>
+                            </x-forms.select>
+                        </div>
+                        <div class="col-sm-6 mt-2 permitted-times" style="display:none;">
+                            <x-forms.timepicker fieldName="permitted_arrival_time" fieldId="permitted_arrival_time" :fieldLabel="__('modules.permittedArrival')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->permitted_arrival_time : ''" />
+                        </div>
+                        <div class="col-sm-6 mt-2 permitted-times" style="display:none;">
+                            <x-forms.timepicker fieldName="permitted_exit_time" fieldId="permitted_exit_time" :fieldLabel="__('modules.permittedExit')" :fieldValue="!is_null($shiftSchedule) ? $shiftSchedule->permitted_exit_time : ''" />
+                        </div>
+                        <div class="col-sm-12 mt-2">
+                            <x-forms.file class="mr-0 mr-lg-2 mr-md-2 cropper" :fieldLabel="__('app.menu.addFile')" fieldName="file" fieldId="file" :fieldValue="(!is_null($shiftSchedule) && $shiftSchedule->file ? $shiftSchedule->file_url : '')" />
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-12">
                     <x-forms.file class="mr-0 mr-lg-2 mr-md-2 cropper" :fieldLabel="__('app.menu.addFile')" fieldName="file" fieldId="file" :fieldValue="(!is_null($shiftSchedule) && $shiftSchedule->file ? $shiftSchedule->file_url : '')" />
@@ -82,6 +131,43 @@
 
 <script>
     $(document).ready(function() {
+        function updateRosterVisibility(){
+            var status = $('#status_type').val();
+            if(status === 'working_shift'){
+                $('.roster-shift-block').show();
+                $('.roster-details').hide();
+            } else if(status === 'day_off'){
+                $('.roster-shift-block').hide();
+                $('.roster-details').hide();
+            } else {
+                $('.roster-shift-block').hide();
+                $('.roster-details').show();
+            }
+
+            if(status === 'half_day'){
+                $('.half-day-block').show();
+            } else {
+                $('.half-day-block').hide();
+            }
+
+            if(status === 'early_departure' || status === 'late_arrival'){
+                $('.permitted-times').show();
+            } else {
+                $('.permitted-times').hide();
+            }
+
+            if(status === 'external_assignment'){
+                $('.assignment-time').show();
+                $('.roster-details .assignment-location').show();
+            } else {
+                $('.assignment-time').hide();
+                $('.roster-details .assignment-location').hide();
+            }
+        }
+
+        $('#status_type').on('change', updateRosterVisibility);
+        updateRosterVisibility();
+
         $('#save-shift').click(function() {
             @if (!is_null($shiftSchedule))
                 var url = "{{ route('shifts.update', $shiftSchedule->id) }}";

@@ -157,14 +157,42 @@ class EmployeeShiftScheduleController extends AccountBaseController
             $final[$employee->id . '#' . $employee->name] = array_replace($dataTillToday, $dataFromTomorrow);
 
             foreach ($employee->shifts as $shift) {
-                if ($shift->shift->shift_name == 'Day Off') {
-                    $final[$employee->id . '#' . $employee->name][Carbon::parse($shift->date)->day] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . $shift->shift->shift_short_code . '</button>';
-                    $shiftColorCode[Carbon::parse($shift->date)->day] = $shift->color;
+                $dayIndex = Carbon::parse($shift->date)->day;
+                // If a status_type is set on the schedule, render status badge
+                if (!empty($shift->status_type)) {
+                    $status = $shift->status_type;
+                    switch ($status) {
+                        case 'day_off':
+                            $label = __('modules.dayOff');
+                            $bg = '#E8EEF3';
+                            $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $label . '" style="background-color: ' . $bg . '">' . ($shift->shift->shift_short_code ?? __('modules.dayOff')) . '</button>';
+                            $shiftColorCode[$dayIndex] = $shift->color;
+                            break;
+                        case 'unauthorized_absence':
+                            $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-danger f-10 p-1" style="background-color: #E04D4D" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '">Absent</button>';
+                            $shiftColorCode[$dayIndex] = '';
+                            break;
+                        default:
+                            // fallback to shift rendering
+                            if (isset($shift->shift) && $shift->shift->shift_name == 'Day Off') {
+                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . $shift->shift->shift_short_code . '</button>';
+                                $shiftColorCode[$dayIndex] = $shift->color;
+                            } else {
+                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . ($shift->shift->color ?? '#ffffff') . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . ($shift->shift->shift_name ?? '') . '">' . ($shift->shift->shift_short_code ?? '') . '</button>';
+                                $shiftColorCode[$dayIndex] = $shift->color;
+                            }
+                            break;
+                    }
+                } else {
+                    if ($shift->shift->shift_name == 'Day Off') {
+                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . $shift->shift->shift_short_code . '</button>';
+                        $shiftColorCode[$dayIndex] = $shift->color;
 
-                }
-                else {
-                    $final[$employee->id . '#' . $employee->name][Carbon::parse($shift->date)->day] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $shift->shift->shift_name . '">' . $shift->shift->shift_short_code . '</button>';
-                    $shiftColorCode[Carbon::parse($shift->date)->day] = $shift->color;
+                    }
+                    else {
+                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $shift->shift->shift_name . '">' . $shift->shift->shift_short_code . '</button>';
+                        $shiftColorCode[$dayIndex] = $shift->color;
+                    }
                 }
 
             }
@@ -196,8 +224,9 @@ class EmployeeShiftScheduleController extends AccountBaseController
             }
 
             foreach ($employee->leaves as $leave) {
-                if ($leave->duration != 'half day') {
-                    $final[$employee->id . '#' . $employee->name][$leave->leave_date->day] = 'Leave';
+                if ($leave->status == 'approved' && $leave->duration != 'half day') {
+                    $leaveLabel = __('app.leave') . ': ' . $leave->type->type_name;
+                    $final[$employee->id . '#' . $employee->name][$leave->leave_date->day] = '<button type="button" class="badge badge-primary f-10 p-1" style="background-color: #5B9BD5" data-user-id="' . $employee->id . '" data-attendance-date="' . $leave->leave_date->day . '">' . $leaveLabel . '</button>';
                     $shiftColorCode[$leave->leave_date->day] = '';
                 }
             }
@@ -354,8 +383,9 @@ class EmployeeShiftScheduleController extends AccountBaseController
             }
 
             foreach ($employee->leaves as $leave) {
-                if ($leave->duration != 'half day') {
-                    $final[$employee->id . '#' . $employee->name][$leave->leave_date->toDateString()] = 'Leave';
+                if ($leave->status == 'approved' && $leave->duration != 'half day') {
+                    $leaveLabel = __('app.leave') . ': ' . $leave->type->type_name;
+                    $final[$employee->id . '#' . $employee->name][$leave->leave_date->toDateString()] = '<button type="button" class="badge badge-primary f-10 p-1" style="background-color: #5B9BD5" data-user-id="' . $employee->id . '" data-attendance-date="' . $leave->leave_date->toDateString() . '">' . $leaveLabel . '</button>';
                     $shiftColorCode[$leave->leave_date->day] = '';
                     $leaveType[$employee->id][$leave->leave_date->toDateString()] = $leave->type->type_name;
                 }
@@ -409,18 +439,103 @@ class EmployeeShiftScheduleController extends AccountBaseController
         $this->employee = User::findOrFail($userid);
         $this->shiftSchedule = EmployeeShiftSchedule::with('pendingRequestChange')->where('user_id', $userid)->where('date', $this->date)->first();
         $this->employeeShifts = EmployeeShift::all();
+        $this->users = User::where('status', 'active')->get();
+        // Approved leaves for this employee on this date (if any)
+        $this->approvedLeaves = \App\Models\Leave::where('user_id', $userid)
+            ->whereDate('leave_date', $this->date)
+            ->where('status', 'approved')
+            ->get();
 
         return view('shift-rosters.ajax.edit', $this->data);
     }
 
     public function store(Request $request)
     {
-        EmployeeShiftSchedule::firstOrCreate([
+        $manageEmployeeShifts = user()->permission('manage_employee_shifts');
+
+        abort_403(!(in_array($manageEmployeeShifts, ['all','added_by'])));
+
+        $status = $request->status_type;
+
+        $validator = \Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+            'shift_date' => 'required|date',
+            'status_type' => 'nullable|string',
+        ]);
+
+        // conditional validations
+        if ($status == 'working_shift') {
+            $validator->sometimes('employee_shift_id', 'required|exists:employee_shifts,id', function () use ($status) { return true; });
+        }
+
+        if ($status == 'half_day') {
+            $validator->sometimes('half_day_period', 'required|in:first_half,second_half', function () use ($status) { return true; });
+        }
+
+        if ($status == 'early_departure') {
+            $validator->sometimes('permitted_exit_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'late_arrival') {
+            $validator->sometimes('permitted_arrival_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'external_assignment') {
+            $validator->sometimes('assignment_location', 'required|string', function () use ($status) { return true; });
+            $validator->sometimes('assignment_start_time', 'required', function () use ($status) { return true; });
+            $validator->sometimes('assignment_end_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'unauthorized_absence') {
+            // only full admins allowed to mark unauthorized absence
+            if (user()->permission('manage_employee_shifts') != 'all') {
+                return Reply::error(__('messages.permissionDenied'));
+            }
+            $validator->sometimes('reason', 'required|string', function () use ($status) { return true; });
+        }
+
+        if ($validator->fails()) {
+            return Reply::error($validator->errors()->first());
+        }
+
+        // Prevent conflicts: existing approved leave for this date
+        $existingLeave = \App\Models\Leave::where('user_id', $request->user_id)->whereDate('leave_date', $request->shift_date)->where('status', 'approved')->first();
+        if ($status == 'working_shift' && $existingLeave) {
+            return Reply::error(__('messages.conflictingLeaveExists'));
+        }
+
+        $shift = EmployeeShiftSchedule::firstOrNew([
             'user_id' => $request->user_id,
             'date' => $request->shift_date,
-            'employee_shift_id' => $request->employee_shift_id,
-            'company_id' => company()->id
         ]);
+
+        // Prevent creating duplicate conflicting entries
+        $other = EmployeeShiftSchedule::where('user_id', $request->user_id)->where('date', $request->shift_date)->where('id', '!=', $shift->id)->first();
+        if ($other && $other->status_type && $other->status_type != $status) {
+            return Reply::error(__('messages.conflictingRosterExists'));
+        }
+
+        $shift->employee_shift_id = $request->employee_shift_id ?: $shift->employee_shift_id;
+        $shift->status_type = $status ?: $shift->status_type;
+        $shift->permitted_arrival_time = $request->permitted_arrival_time ?: $shift->permitted_arrival_time;
+        $shift->permitted_exit_time = $request->permitted_exit_time ?: $shift->permitted_exit_time;
+        $shift->half_day_period = $request->half_day_period ?: $shift->half_day_period;
+        $shift->reason = $request->reason ?: $shift->reason;
+        $shift->approved_by = $request->approved_by ?: $shift->approved_by;
+        $shift->assignment_location = $request->assignment_location ?: $shift->assignment_location;
+        $shift->assignment_start_time = $request->assignment_start_time ?: $shift->assignment_start_time;
+        $shift->assignment_end_time = $request->assignment_end_time ?: $shift->assignment_end_time;
+        $shift->company_id = company()->id;
+        $shift->added_by = user()->id;
+        $shift->last_updated_by = user()->id;
+
+        $shift->save();
+
+        if ($request->hasFile('file')) {
+            $fileName = Files::uploadLocalOrS3($request->file, 'employee-shift-file/' . $shift->id);
+            $shift->file = $fileName;
+            $shift->saveQuietly();
+        }
 
         return Reply::success(__('messages.employeeShiftAdded'));
     }
@@ -428,16 +543,74 @@ class EmployeeShiftScheduleController extends AccountBaseController
     public function update(Request $request, $id)
     {
         $shift = EmployeeShiftSchedule::findOrFail($id);
-        $shift->employee_shift_id = $request->employee_shift_id;
 
-        if (!$request->hasFile('file')) {
+        $manageEmployeeShifts = user()->permission('manage_employee_shifts');
+        abort_403(!(in_array($manageEmployeeShifts, ['all','added_by'])));
+
+        $status = $request->status_type ?: $shift->status_type;
+
+        $validator = \Validator::make($request->all(), [
+            'status_type' => 'nullable|string',
+        ]);
+
+        if ($status == 'working_shift') {
+            $validator->sometimes('employee_shift_id', 'required|exists:employee_shifts,id', function () use ($status) { return true; });
+        }
+
+        if ($status == 'half_day') {
+            $validator->sometimes('half_day_period', 'required|in:first_half,second_half', function () use ($status) { return true; });
+        }
+
+        if ($status == 'early_departure') {
+            $validator->sometimes('permitted_exit_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'late_arrival') {
+            $validator->sometimes('permitted_arrival_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'external_assignment') {
+            $validator->sometimes('assignment_location', 'required|string', function () use ($status) { return true; });
+            $validator->sometimes('assignment_start_time', 'required', function () use ($status) { return true; });
+            $validator->sometimes('assignment_end_time', 'required', function () use ($status) { return true; });
+        }
+
+        if ($status == 'unauthorized_absence') {
+            if (user()->permission('manage_employee_shifts') != 'all') {
+                return Reply::error(__('messages.permissionDenied'));
+            }
+            $validator->sometimes('reason', 'required|string', function () use ($status) { return true; });
+        }
+
+        if ($validator->fails()) {
+            return Reply::error($validator->errors()->first());
+        }
+
+        if ($request->has('employee_shift_id')) {
+            $shift->employee_shift_id = $request->employee_shift_id;
+        }
+
+        if ($request->has('status_type')) {
+            $shift->status_type = $request->status_type;
+        }
+
+        $shift->permitted_arrival_time = $request->permitted_arrival_time ?: $shift->permitted_arrival_time;
+        $shift->permitted_exit_time = $request->permitted_exit_time ?: $shift->permitted_exit_time;
+        $shift->half_day_period = $request->half_day_period ?: $shift->half_day_period;
+        $shift->reason = $request->reason ?: $shift->reason;
+        $shift->approved_by = $request->approved_by ?: $shift->approved_by;
+        $shift->assignment_location = $request->assignment_location ?: $shift->assignment_location;
+        $shift->assignment_start_time = $request->assignment_start_time ?: $shift->assignment_start_time;
+        $shift->assignment_end_time = $request->assignment_end_time ?: $shift->assignment_end_time;
+
+        if (!$request->hasFile('file') && $request->has('remove_file') && $request->remove_file == '1') {
             Files::deleteFile($shift->file, 'employee-shift-file/' . $id);
             Files::deleteDirectory('employee-shift-file/' . $id);
             $shift->file = null;
         }
 
         if ($request->hasFile('file')) {
-            Files::deleteFile($request->file, 'employee-shift-file/' . $id);
+            Files::deleteFile($shift->file, 'employee-shift-file/' . $id);
             $shift->file = Files::uploadLocalOrS3($request->file, 'employee-shift-file/' . $id);
         }
 
