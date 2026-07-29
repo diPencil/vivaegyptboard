@@ -148,7 +148,43 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
             }
 
             foreach ($employee->shifts as $shift) {
-                $employeedata[$employee_index]['dates'][Carbon::parse($shift->date)->timezone(company()->timezone)->day] = $shift->shift->shift_name;
+                $day = Carbon::parse($shift->date)->timezone(company()->timezone)->day;
+                $label = '';
+                if (!empty($shift->status_type)) {
+                    switch ($shift->status_type) {
+                        case 'day_off':
+                            $label = __('modules.dayOff');
+                            break;
+                        case 'annual_leave':
+                        case 'sick_leave':
+                        case 'unpaid_leave':
+                            $type = ($shift->leave && $shift->leave->type) ? $shift->leave->type->type_name : __('app.leave');
+                            $label = __('app.leave') . ': ' . $type;
+                            break;
+                        case 'unauthorized_absence':
+                            $label = __('modules.unauthorizedAbsence');
+                            break;
+                        case 'half_day':
+                            $label = __('modules.halfDay') . ' (' . ($shift->half_day_period ?? '') . ')';
+                            break;
+                        case 'early_departure':
+                            $label = __('modules.earlyDeparture') . ' ' . ($shift->permitted_exit_time ? Carbon::parse($shift->permitted_exit_time)->format('H:i') : '');
+                            break;
+                        case 'late_arrival':
+                            $label = __('modules.lateArrival') . ' ' . ($shift->permitted_arrival_time ? Carbon::parse($shift->permitted_arrival_time)->format('H:i') : '');
+                            break;
+                        case 'external_assignment':
+                            $label = __('modules.externalAssignment') . ' ' . ($shift->assignment_location ?? '') . ' ' . ($shift->assignment_start_time ? Carbon::parse($shift->assignment_start_time)->format('H:i') : '') . ' - ' . ($shift->assignment_end_time ? Carbon::parse($shift->assignment_end_time)->format('H:i') : '');
+                            break;
+                        default:
+                            $label = $shift->shift->shift_name ?? '';
+                            break;
+                    }
+                } else {
+                    $label = $shift->shift->shift_name;
+                }
+
+                $employeedata[$employee_index]['dates'][$day] = $label;
             }
 
             $employeeName = $employee->name;
