@@ -25,24 +25,30 @@ class EmployeeShiftScheduleObserver
     {
         if (user()) {
             $employeeShiftSchedule->added_by = user()->id;
-            $employeeShiftSchedule->shift_start_time = $employeeShiftSchedule->date->toDateString() . ' ' . $employeeShiftSchedule->shift->office_start_time;
+            
+            if ($employeeShiftSchedule->shift && $employeeShiftSchedule->shift->office_start_time && $employeeShiftSchedule->shift->office_end_time) {
+                $employeeShiftSchedule->shift_start_time = $employeeShiftSchedule->date->toDateString() . ' ' . $employeeShiftSchedule->shift->office_start_time;
 
-            if (Carbon::parse($employeeShiftSchedule->shift->office_start_time)->gt(Carbon::parse($employeeShiftSchedule->shift->office_end_time))) {
-                $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->addDay()->toDateString() . ' ' . $employeeShiftSchedule->shift->office_end_time;
-
+                if (Carbon::parse($employeeShiftSchedule->shift->office_start_time)->gt(Carbon::parse($employeeShiftSchedule->shift->office_end_time))) {
+                    $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->addDay()->toDateString() . ' ' . $employeeShiftSchedule->shift->office_end_time;
+                }
+                else {
+                    $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->toDateString() . ' ' . $employeeShiftSchedule->shift->office_end_time;
+                }
             }
-            else {
-                $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->toDateString() . ' ' . $employeeShiftSchedule->shift->office_end_time;
-            }
 
-            $employeeShiftSchedule->remarks = request()->remarks;
+            $employeeShiftSchedule->remarks = request()->remarks ?? $employeeShiftSchedule->remarks;
         }
     }
 
     public function created(EmployeeShiftSchedule $employeeShiftSchedule)
     {
         if (user() && !self::$isShiftRotation) {
-            event(new EmployeeShiftScheduleEvent($employeeShiftSchedule));
+            try {
+                event(new EmployeeShiftScheduleEvent($employeeShiftSchedule));
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send shift schedule event: ' . $e->getMessage());
+            }
         }
 
         if (request()->hasFile('file')) {
@@ -61,28 +67,32 @@ class EmployeeShiftScheduleObserver
         }
 
         if (!isRunningInConsoleOrSeeding() && user() && request()->employee_shift_id) {
-            $shift = EmployeeShift::findOrFail(request()->employee_shift_id);
-
+            $shift = EmployeeShift::find(request()->employee_shift_id);
         }
         else {
-            $shift = EmployeeShift::findOrFail($employeeShiftSchedule->employee_shift_id);
+            $shift = EmployeeShift::find($employeeShiftSchedule->employee_shift_id);
         }
 
-        $employeeShiftSchedule->shift_start_time = $employeeShiftSchedule->date->toDateString() . ' ' . $shift->office_start_time;
+        if ($shift && $shift->office_start_time && $shift->office_end_time) {
+            $employeeShiftSchedule->shift_start_time = $employeeShiftSchedule->date->toDateString() . ' ' . $shift->office_start_time;
 
-        if (Carbon::parse($shift->office_start_time)->gt(Carbon::parse($shift->office_end_time))) {
-            $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->addDay()->toDateString() . ' ' . $shift->office_end_time;
-
-        }
-        else {
-            $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->toDateString() . ' ' . $shift->office_end_time;
+            if (Carbon::parse($shift->office_start_time)->gt(Carbon::parse($shift->office_end_time))) {
+                $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->addDay()->toDateString() . ' ' . $shift->office_end_time;
+            }
+            else {
+                $employeeShiftSchedule->shift_end_time = $employeeShiftSchedule->date->toDateString() . ' ' . $shift->office_end_time;
+            }
         }
     }
 
     public function updated(EmployeeShiftSchedule $employeeShiftSchedule)
     {
         if (user() && $employeeShiftSchedule->isDirty('employee_shift_id')) {
-            event(new EmployeeShiftScheduleEvent($employeeShiftSchedule));
+            try {
+                event(new EmployeeShiftScheduleEvent($employeeShiftSchedule));
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send shift schedule update event: ' . $e->getMessage());
+            }
         }
     }
 
