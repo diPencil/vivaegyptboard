@@ -16,6 +16,8 @@ use App\Traits\ImportExcel;
 use App\Traits\EmployeeDashboard;
 use Illuminate\Http\Request;
 use App\Models\CompanyAddress;
+use App\Exports\AttendanceByMemberExport;
+use App\Exports\AttendanceMultiSheetExport;
 use App\Exports\AttendanceExport;
 use App\Imports\AttendanceImport;
 use App\Jobs\ImportAttendanceJob;
@@ -24,7 +26,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\EmployeeShiftSchedule;
-use App\Exports\AttendanceByMemberExport;
 use App\Http\Requests\ClockIn\ClockInRequest;
 use App\Http\Requests\Attendance\StoreAttendance;
 use App\Http\Requests\Admin\Employee\ImportRequest;
@@ -1372,7 +1373,7 @@ class AttendanceController extends AccountBaseController
 
         $date = $endDate->lessThan(now()) ? $endDate : now();
 
-        return Excel::download(new AttendanceExport($year, $month, $id, $department, $designation, $startDate, $endDate), 'Attendance_From_' . $startDate->format('d-m-Y') . '_To_' . $date->format('d-m-Y') . '.xlsx');
+        return Excel::download(new AttendanceMultiSheetExport($year, $month, $id, $department, $designation, $startDate, $endDate), 'Attendance_From_' . $startDate->format('d-m-Y') . '_To_' . $date->format('d-m-Y') . '.xlsx');
     }
 
     public function byHour(Request $request)

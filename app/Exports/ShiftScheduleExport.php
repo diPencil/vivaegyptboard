@@ -8,12 +8,14 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, WithEvents
+class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, WithTitle, WithEvents
 {
 
     public static $sum;
@@ -30,17 +32,26 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
     public $daysInMonth;
     public $weekStartDate;
     public $weekEndDate;
+    public $date;
+    public $employees;
 
-    public function __construct($year, $month, $id, $department, $startdate, $enddate, $viewType)
+    public function __construct($year, $month, $id, $department, $startDate, $endaDate, $viewType, $employees = null)
     {
         $this->viewAttendancePermission = user()->permission('view_shift_roster');
         $this->year = $year;
         $this->month = $month;
         $this->userId = $id;
         $this->department = $department;
-        $this->startdate = $startdate;
-        $this->enddate = $enddate;
+        $this->startdate = $startDate;
+        $this->enddate = $endaDate;
         $this->viewType = $viewType;
+        $this->date = $this->enddate->lessThan(now()) ? $this->enddate : now();
+        $this->employees = $employees;
+    }
+
+    public function title(): string
+    {
+        return 'Shift Roster';
     }
 
     public function registerEvents(): array
@@ -84,29 +95,33 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
         $endDate = $this->enddate;
         $id = $this->userId;
 
-        $employees = User::with(
-            ['shifts' => function ($query) use ($startDate, $endDate) {
-                $query->wherebetween('employee_shift_schedules.date', [$startDate->toDateString(), $endDate->toDateString()]);
-            },
-                'leaves' => function ($query) use ($startDate, $endDate) {
-                    $query->wherebetween('leaves.leave_date', [$startDate->toDateString(), $endDate->toDateString()])
-                        ->where('status', 'approved');
-                }, 'shifts.shift', 'shifts.replacementUser', 'shifts.replacementShift', 'shifts.rotationSource.user', 'leaves.type']
-        )->join('role_user', 'role_user.user_id', '=', 'users.id')
-            ->join('roles', 'roles.id', '=', 'role_user.role_id')
-            ->leftJoin('employee_details', 'employee_details.user_id', '=', 'users.id')
-            ->select('users.id', 'users.name', 'users.email', 'users.created_at', 'employee_details.department_id', 'users.image')
-            ->onlyEmployee()->groupBy('users.id');
+        if ($this->employees) {
+            $employees = $this->employees;
+        } else {
+            $employees = User::with(
+                ['shifts' => function ($query) use ($startDate, $endDate) {
+                    $query->wherebetween('employee_shift_schedules.date', [$startDate->toDateString(), $endDate->toDateString()]);
+                },
+                    'leaves' => function ($query) use ($startDate, $endDate) {
+                        $query->wherebetween('leaves.leave_date', [$startDate->toDateString(), $endDate->toDateString()])
+                            ->where('status', 'approved');
+                    }, 'shifts.shift', 'shifts.replacementUser', 'shifts.replacementShift', 'shifts.rotationSource.user', 'leaves.type']
+            )->join('role_user', 'role_user.user_id', '=', 'users.id')
+                ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                ->leftJoin('employee_details', 'employee_details.user_id', '=', 'users.id')
+                ->select('users.id', 'users.name', 'users.email', 'users.created_at', 'employee_details.department_id', 'users.image', 'employee_details.joining_date')
+                ->onlyEmployee()->groupBy('users.id');
 
-        if ($this->department != 'all') {
-            $employees = $employees->where('employee_details.department_id', $this->department);
+            if ($this->department != 'all') {
+                $employees = $employees->where('employee_details.department_id', $this->department);
+            }
+
+            if ($this->userId != 'all') {
+                $employees = $employees->where('users.id', $this->userId);
+            }
+
+            $employees = $employees->get();
         }
-
-        if ($this->userId != 'all') {
-            $employees = $employees->where('users.id', $this->userId);
-        }
-
-        $employees = $employees->get();
 
         $this->holidays = Holiday::whereRaw('MONTH(holidays.date) = ?', [$this->month])->whereRaw('YEAR(holidays.date) = ?', [$this->year])->get();
 
