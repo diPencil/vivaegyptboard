@@ -168,7 +168,11 @@
                         class="fa fa-arrow-right text-lightest f-11 mx-1"></i>
                     @lang('modules.attendance.absent') &nbsp;|&nbsp; <i class="fa fa-plane-departure text-danger"></i> <i
                         class="fa fa-arrow-right text-lightest f-11 mx-1"></i>
-                    @lang('modules.attendance.leave')
+                    @lang('modules.attendance.leave') &nbsp;|&nbsp; <i class="fa fa-sync text-primary"></i> <i
+                        class="fa fa-arrow-right text-lightest f-11 mx-1"></i>
+                    @lang('modules.rotationDayOff') &nbsp;|&nbsp; <i class="fa fa-user-shield text-info"></i> <i
+                        class="fa fa-arrow-right text-lightest f-11 mx-1"></i>
+                    @lang('modules.rotationCover')
 
                 </div>
             </div>

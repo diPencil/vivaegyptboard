@@ -2424,6 +2424,12 @@ return array(
 
     'rotationDayOff' => 'Rotation Day Off',
     'rotationCover' => 'Rotation Cover',
+    'coveredBy' => 'Covered by',
+    'coveringFor' => 'Covering for',
+    'rosterStatus' => 'Roster Status',
+    'scheduledShift' => 'Scheduled Shift',
+    'rotationEmployee' => 'Rotation Employee',
+    'rotationDetails' => 'Rotation Details',
     'replacementEmployee' => 'Replacement Employee',
     'replacementShift' => 'Replacement Shift',
     'coveredBy' => 'Covered By',

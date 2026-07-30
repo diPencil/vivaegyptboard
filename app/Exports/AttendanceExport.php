@@ -161,7 +161,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                 ->where('status', 'approved')
                 ->select('leave_date', 'reason', 'duration')->get();
 
-            $employeeShifts = EmployeeShiftSchedule::with('shift')
+            $employeeShifts = EmployeeShiftSchedule::with('shift', 'replacementUser', 'replacementShift', 'rotationSource.user')
                 ->where('user_id', $userId)
                 ->where('date', '>=', $startDate)
                 ->where('date', '<=', $endDate)
@@ -205,8 +205,16 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                     }
 
                     foreach ($employeeShifts as $shift) { // Check shifts
-                        if ($date->equalTo($shift->date) && $shift->shift->shift_name == 'Day Off') {
-                            $att->status = $shift->shift->shift_name;
+                        if ($date->equalTo($shift->date)) {
+                            if ($shift->status_type == 'rotation_day_off') {
+                                $repName = $shift->replacementUser ? $shift->replacementUser->name : '--';
+                                $att->status = __('modules.rotationDayOff') . ' (' . __('modules.coveredBy') . ': ' . $repName . ')';
+                            } elseif ($shift->rotation_source_schedule_id != null) {
+                                $origName = $shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--';
+                                $att->status = __('modules.rotationCover') . ' (' . __('modules.coveringFor') . ': ' . $origName . ')';
+                            } elseif ($shift->shift && $shift->shift->shift_name == 'Day Off') {
+                                $att->status = $shift->shift->shift_name;
+                            }
                         }
                     }
 
@@ -238,9 +246,22 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                     }
 
                     foreach ($employeeShifts as $shift) { // Check shifts
-                        if ($date->equalTo($shift->date) && $shift->shift->shift_name == 'Day Off') {
-                            $att->status = $shift->shift->shift_name;
-                            $attendances->push($att);
+                        if ($date->equalTo($shift->date)) {
+                            if ($shift->status_type == 'rotation_day_off') {
+                                $repName = $shift->replacementUser ? $shift->replacementUser->name : '--';
+                                $att->status = __('modules.rotationDayOff') . ' (' . __('modules.coveredBy') . ': ' . $repName . ')';
+                                $attendances->push($att);
+                            } elseif ($shift->rotation_source_schedule_id != null) {
+                                $origName = $shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--';
+                                // We don't push a new record if it's just cover and there's real attendance, but we add to existing
+                                $existing = $attendances->whereBetween('clock_in_time', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->first();
+                                if ($existing) {
+                                    $existing->rotation_info = __('modules.rotationCover') . ' (' . __('modules.coveringFor') . ': ' . $origName . ')';
+                                }
+                            } elseif ($shift->shift && $shift->shift->shift_name == 'Day Off') {
+                                $att->status = $shift->shift->shift_name;
+                                $attendances->push($att);
+                            }
                         }
                     }
 
@@ -314,6 +335,10 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
                     $status = '--';
                 }
 
+                if (isset($attendance->rotation_info) && $attendance->rotation_info) {
+                    $status .= ' | ' . $attendance->rotation_info;
+                }
+
                 $workFrom = $attendance->working_from ?? '--';
                 $companyAddress = CompanyAddress::where('id', $attendance->location_id)->first();
                 $location = '-';
@@ -360,7 +385,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
 
             $emp_status = $employeedata['dates'][$index]['comments']['status'];
 
-            if (str_contains($emp_status, 'Holiday') || $employeedata['dates'][$index]['total_hours'] < 1) {
+            if (str_contains($emp_status, 'Holiday') || str_contains($emp_status, 'Rotation Day Off') || str_contains($emp_status, 'Rotation Cover') || $employeedata['dates'][$index]['total_hours'] < 1) {
                 $data[] = $employeedata['dates'][$index]['comments']['status'];
             }
             else {

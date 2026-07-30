@@ -9,9 +9,10 @@ use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 use App\Models\Attendance;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use App\Models\EmployeeShiftSchedule;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\FromCollection;
 
 class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapping
@@ -46,7 +47,7 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
     public function headings(): array
     {
         return [
-            [__('app.attendanceof') . $this->empname . '_' . __('app.from') . '_' . $this->startdate->format('d-m-Y') . '_' . __('app.to') . '_' . $this->date->format('d-m-Y'), __('modules.attendance.clock_in'), __('modules.attendance.clock_out'), __('app.status'), __('app.location'), __('app.total')]
+            [__('app.attendanceof') . ' ' . $this->empname . ' ' . __('app.from') . ' ' . $this->startdate->format('d-m-Y') . ' ' . __('app.to') . ' ' . $this->date->format('d-m-Y'), __('modules.attendance.clock_in'), __('modules.attendance.clock_out'), __('app.status'), __('app.location'), __('app.total'), __('modules.rosterStatus'), __('modules.scheduledShift'), __('modules.rotationEmployee'), __('modules.rotationDetails')]
         ];
     }
 
@@ -73,6 +74,12 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
 
         $period = CarbonPeriod::create($startDate, $endDate); // Get All Dates from start to end date
         $holidays = Holiday::getHolidayByDates($startDate, $endDate, $userId); // Getting Holiday Data
+        
+        $employeeShifts = EmployeeShiftSchedule::with('shift', 'replacementUser', 'replacementShift', 'rotationSource.user')
+            ->where('user_id', $userId)
+            ->where('date', '>=', $startDate)
+            ->where('date', '<=', $endDate)
+            ->get();
 
         $attendances = collect($attendances)->each(function ($item) {
             $item->status = '';
@@ -145,6 +152,56 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
                 }
 
             }
+            
+            foreach ($employeeShifts as $shift) {
+                if ($date->equalTo($shift->date)) {
+                    if ($shift->status_type == 'rotation_day_off') {
+                        $att->roster_status = __('modules.rotationDayOff');
+                        $att->scheduled_shift = $shift->replacementShift ? $shift->replacementShift->shift_name . ' (' . Carbon::parse($shift->replacementShift->office_start_time)->format(company()->time_format) . ' - ' . Carbon::parse($shift->replacementShift->office_end_time)->format(company()->time_format) . ')' : '--';
+                        $att->rotation_employee = $shift->replacementUser ? $shift->replacementUser->name : '--';
+                        $att->rotation_details = __('modules.coveredBy') . ' ' . $att->rotation_employee;
+                        
+                        if (!$attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->count()) {
+                            $att->status = $att->roster_status;
+                            $attendances->push($att);
+                        } else {
+                            $existing = $attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->first();
+                            if ($existing) {
+                                $existing->roster_status = $att->roster_status;
+                                $existing->scheduled_shift = $att->scheduled_shift;
+                                $existing->rotation_employee = $att->rotation_employee;
+                                $existing->rotation_details = $att->rotation_details;
+                                if ($existing->status == 'Absent' || $existing->status == '') {
+                                    $existing->status = $att->roster_status;
+                                }
+                            }
+                        }
+                    } elseif ($shift->rotation_source_schedule_id != null) {
+                        $att->roster_status = __('modules.rotationCover');
+                        $att->scheduled_shift = $shift->shift ? $shift->shift->shift_name . ' (' . Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . Carbon::parse($shift->shift->office_end_time)->format(company()->time_format) . ')' : '--';
+                        $att->rotation_employee = $shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--';
+                        $att->rotation_details = __('modules.coveringFor') . ' ' . $att->rotation_employee;
+                        
+                        $existing = $attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->first();
+                        if ($existing) {
+                            $existing->roster_status = $att->roster_status;
+                            $existing->scheduled_shift = $att->scheduled_shift;
+                            $existing->rotation_employee = $att->rotation_employee;
+                            $existing->rotation_details = $att->rotation_details;
+                        }
+                    } elseif ($shift->shift && $shift->shift->shift_name == 'Day Off') {
+                        if (!$attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->count()) {
+                            $att->status = 'Day Off';
+                            $attendances->push($att);
+                        } else {
+                            $existing = $attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->first();
+                            if ($existing && ($existing->status == 'Absent' || $existing->status == '')) {
+                                $existing->status = 'Day Off';
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         $employee_temp = array();
@@ -214,6 +271,10 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
                         'date' => $date,
                         'location' => $location,
                         'total_hours' => $diff_time,
+                        'roster_status' => $attendance->roster_status ?? '--',
+                        'scheduled_shift' => $attendance->scheduled_shift ?? '--',
+                        'rotation_employee' => $attendance->rotation_employee ?? '--',
+                        'rotation_details' => $attendance->rotation_details ?? '--',
                         'comments' => [
                             'status' => $status,
                             'clockIn' => $clock_in,
@@ -229,6 +290,10 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
                     'date' => $date,
                     'total_hours' => $diff_time,
                     'location' => $location,
+                    'roster_status' => $attendance->roster_status ?? '--',
+                    'scheduled_shift' => $attendance->scheduled_shift ?? '--',
+                    'rotation_employee' => $attendance->rotation_employee ?? '--',
+                    'rotation_details' => $attendance->rotation_details ?? '--',
                     'comments' => [
                         'status' => $status,
                         'clockIn' => $clock_in,
@@ -266,6 +331,10 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
             $employeedata['comments']['status'],
             $employeedata['location'],
             $view_status,
+            $employeedata['roster_status'] ?? '--',
+            $employeedata['scheduled_shift'] ?? '--',
+            $employeedata['rotation_employee'] ?? '--',
+            $employeedata['rotation_details'] ?? '--',
         ];
     }
 

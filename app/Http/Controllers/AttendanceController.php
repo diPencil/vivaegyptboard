@@ -124,6 +124,10 @@ class AttendanceController extends AccountBaseController
                 },
                 'leaves.type',
                 'shifts.shift',
+                'shifts.replacementUser',
+                'shifts.replacementShift',
+                'shifts.rotationSource.user',
+                'shifts.rotationSource.shift',
                 'attendance.shift'
             ]
         )->join('role_user', 'role_user.user_id', '=', 'users.id')
@@ -170,6 +174,7 @@ class AttendanceController extends AccountBaseController
         $final = [];
         $holidayOccasions = [];
         $leaveReasons = [];
+        $rotationDetails = [];
 
         $this->daysInMonth = Carbon::parse('01-' . $request->month . '-' . $request->year)->daysInMonth;
         $now = now()->timezone($this->company->timezone);
@@ -199,7 +204,21 @@ class AttendanceController extends AccountBaseController
 
 
             foreach ($employee->shifts as $shifts) {
-                if ($shifts->shift->shift_name == 'Day Off') {
+                if ($shifts->status_type == 'rotation_day_off') {
+                    $final[$employee->id . '#' . $employee->name][$shifts->date->day] = 'Rotation Day Off';
+                    $rotationDetails[$employee->id][$shifts->date->day] = [
+                        'type' => 'rotation_day_off',
+                        'replacement_name' => $shifts->replacementUser ? $shifts->replacementUser->name : '--',
+                        'replacement_shift' => $shifts->replacementShift ? $shifts->replacementShift->shift_name . ' (' . Carbon::parse($shifts->replacementShift->office_start_time)->format($this->company->time_format) . ' - ' . Carbon::parse($shifts->replacementShift->office_end_time)->format($this->company->time_format) . ')' : '--',
+                    ];
+                } elseif ($shifts->rotation_source_schedule_id != null) {
+                    $sourceUser = $shifts->rotationSource ? ($shifts->rotationSource->user ? $shifts->rotationSource->user->name : '--') : '--';
+                    $rotationDetails[$employee->id][$shifts->date->day] = [
+                        'type' => 'rotation_cover',
+                        'original_name' => $sourceUser,
+                        'shift' => $shifts->shift ? $shifts->shift->shift_name . ' (' . Carbon::parse($shifts->shift->office_start_time)->format($this->company->time_format) . ' - ' . Carbon::parse($shifts->shift->office_end_time)->format($this->company->time_format) . ')' : '--',
+                    ];
+                } elseif ($shifts->shift && $shifts->shift->shift_name == 'Day Off') {
                     $final[$employee->id . '#' . $employee->name][$shifts->date->day] = 'Day Off';
                 }
             }
@@ -321,6 +340,7 @@ class AttendanceController extends AccountBaseController
         $this->employeeAttendence = $final;
         $this->holidayOccasions = $holidayOccasions;
         $this->leaveReasons = $leaveReasons;
+        $this->rotationDetails = $rotationDetails;
 
         $this->weekMap = Holiday::weekMap('D');
 

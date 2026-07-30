@@ -91,7 +91,7 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                 'leaves' => function ($query) use ($startDate, $endDate) {
                     $query->wherebetween('leaves.leave_date', [$startDate->toDateString(), $endDate->toDateString()])
                         ->where('status', 'approved');
-                }, 'shifts.shift', 'leaves.type']
+                }, 'shifts.shift', 'shifts.replacementUser', 'shifts.replacementShift', 'shifts.rotationSource.user', 'leaves.type']
         )->join('role_user', 'role_user.user_id', '=', 'users.id')
             ->join('roles', 'roles.id', '=', 'role_user.role_id')
             ->leftJoin('employee_details', 'employee_details.user_id', '=', 'users.id')
@@ -155,6 +155,13 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                         case 'day_off':
                             $label = __('modules.dayOff');
                             break;
+                        case 'rotation_day_off':
+                            $timeStr = '';
+                            if ($shift->replacementShift) {
+                                $timeStr = Carbon::parse($shift->replacementShift->office_start_time)->format(company()->time_format) . ' - ' . Carbon::parse($shift->replacementShift->office_end_time)->format(company()->time_format);
+                            }
+                            $label = __('modules.rotationDayOff') . ' - ' . __('modules.coveredBy') . ' ' . ($shift->replacementUser ? $shift->replacementUser->name : '--') . ' (' . ($shift->replacementShift ? $shift->replacementShift->shift_name : '') . ' ' . $timeStr . ')';
+                            break;
                         case 'annual_leave':
                         case 'sick_leave':
                         case 'unpaid_leave':
@@ -181,7 +188,15 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                             break;
                     }
                 } else {
-                    $label = $shift->shift->shift_name;
+                    if ($shift->rotation_source_schedule_id != null) {
+                        $timeStr = '';
+                        if ($shift->shift) {
+                            $timeStr = Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
+                        }
+                        $label = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . ($shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--') . ' (' . ($shift->shift ? $shift->shift->shift_name : '') . ' ' . $timeStr . ')';
+                    } else {
+                        $label = $shift->shift->shift_name;
+                    }
                 }
 
                 $employeedata[$employee_index]['dates'][$day] = $label;
