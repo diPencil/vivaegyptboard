@@ -31,6 +31,8 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
      * @return Collection
      */
     public static $sum;
+    public static $startDate;
+    public static $endDate;
     public $year;
     public $month;
     public $userId;
@@ -75,19 +77,29 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         $arr = array('B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AV', 'AW', 'AX', 'AY', 'AZ');
         $j = 2;
 
-        for ($index = 0; $index < $total; $index++) {
-            $total_day = isset($emp_status[$index]['dates']) ? count($emp_status[$index]['dates']) : 0;
+        if (self::$startDate && self::$endDate) {
+            $period = \Carbon\CarbonPeriod::create(self::$startDate, self::$endDate);
+            $dateToColIndex = [];
+            $colIdx = 0;
+            foreach ($period->toArray() as $date) {
+                $dateToColIndex[$date->day] = $colIdx++;
+            }
+        } else {
+            return;
+        }
 
-            for ($i = 1; $i <= $total_day; $i++) {
-                if ($emp_status[$index]['dates'][$i]['total_hours'] > 0) {
-                    $event->sheet->getDelegate()->getComment($arr[$i - 1] . $j)->getText()->createTextRun(
-                        ['Status : ' . $emp_status[$index]['dates'][$i]['comments']['status'],
-                            $emp_status[$index]['dates'][$i]['comments']['clock_in'],
-                        ]
-                    );
+        for ($index = 0; $index < $total; $index++) {
+            if (isset($emp_status[$index]['dates'])) {
+                foreach ($dateToColIndex as $day => $colIdx) {
+                    if (isset($emp_status[$index]['dates'][$day]) && $emp_status[$index]['dates'][$day]['total_hours'] > 0) {
+                        $event->sheet->getDelegate()->getComment($arr[$colIdx] . $j)->getText()->createTextRun(
+                            ['Status : ' . $emp_status[$index]['dates'][$day]['comments']['status'],
+                                $emp_status[$index]['dates'][$day]['comments']['clock_in'],
+                            ]
+                        );
+                    }
                 }
             }
-
             $j++;
         }
 
@@ -161,6 +173,8 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
 
         $result = collect($formattedData);
         self::$sum = $result;
+        self::$startDate = $this->startdate;
+        self::$endDate = $this->enddate;
         return $result;
     }
 
@@ -168,17 +182,21 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
     {
         $data = array();
         $data[] = $employeedata['employee_name'];
-        $num = isset($employeedata['dates']) ? count($employeedata['dates']) : 0;
+        $period = \Carbon\CarbonPeriod::create($this->startdate, $this->enddate);
+        
+        foreach ($period->toArray() as $date) {
+            $day = $date->day;
+            if (isset($employeedata['dates'][$day])) {
+                $emp_status = $employeedata['dates'][$day]['comments']['status'];
 
-        for ($index = 1; $index <= $num; $index++) {
-
-            $emp_status = $employeedata['dates'][$index]['comments']['status'];
-
-            if (str_contains($emp_status, 'Holiday') || str_contains($emp_status, 'Rotation Day Off') || str_contains($emp_status, 'Rotation Cover') || $employeedata['dates'][$index]['total_hours'] < 1) {
-                $data[] = $employeedata['dates'][$index]['comments']['status'];
-            }
-            else {
-                $data[] = CarbonInterval::formatHuman($employeedata['dates'][$index]['total_hours']);
+                if (str_contains($emp_status, 'Holiday') || str_contains($emp_status, 'Rotation Day Off') || str_contains($emp_status, 'Rotation Cover') || $employeedata['dates'][$day]['total_hours'] < 1) {
+                    $data[] = $emp_status;
+                }
+                else {
+                    $data[] = \Carbon\CarbonInterval::formatHuman($employeedata['dates'][$day]['total_hours']);
+                }
+            } else {
+                $data[] = '--';
             }
         }
 

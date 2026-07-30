@@ -199,14 +199,22 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                             $label = __('modules.externalAssignment') . ' ' . ($shift->assignment_location ?? '') . ' ' . ($shift->assignment_start_time ? Carbon::parse($shift->assignment_start_time)->format('H:i') : '') . ' - ' . ($shift->assignment_end_time ? Carbon::parse($shift->assignment_end_time)->format('H:i') : '');
                             break;
                         default:
-                            $label = $shift->shift->shift_name ?? '';
+                            if ($shift->rotation_source_schedule_id != null) {
+                                $timeStr = '';
+                                if ($shift->shift) {
+                                    $timeStr = \Carbon\Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . \Carbon\Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
+                                }
+                                $label = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . ($shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--') . ' (' . ($shift->shift ? $shift->shift->shift_name : '') . ' ' . $timeStr . ')';
+                            } else {
+                                $label = $shift->shift->shift_name ?? '';
+                            }
                             break;
                     }
                 } else {
                     if ($shift->rotation_source_schedule_id != null) {
                         $timeStr = '';
                         if ($shift->shift) {
-                            $timeStr = Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
+                            $timeStr = \Carbon\Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . \Carbon\Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
                         }
                         $label = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . ($shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--') . ' (' . ($shift->shift ? $shift->shift->shift_name : '') . ' ' . $timeStr . ')';
                     } else {
@@ -272,21 +280,10 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
         $startDate = Carbon::parse($this->weekStartDate)->day;
         $this->weekEndDate = Carbon::parse($this->weekStartDate->copy()->addDays(6))->day;
 
-        if ($this->viewType != 'week') {
-            $num = isset($employeedata['dates']) ? count($employeedata['dates']) : 0;
+        $period = CarbonPeriod::create($this->startdate, $this->enddate);
 
-            for ($index = 1; $index <= $num; $index++) {
-                $data[] = $employeedata['dates'][$index];
-            }
-        }
-        else {
-            $num = isset($employeedata['dates']) ? count($employeedata['dates']) : 0;
-
-            $period = CarbonPeriod::create($this->startdate, $this->enddate); // Get All Dates from start to end date
-
-            foreach ($period->toArray() as $date) {
-                $data[] = $employeedata['dates'][$date->day];
-            }
+        foreach ($period->toArray() as $date) {
+            $data[] = $employeedata['dates'][$date->day] ?? '--';
         }
 
         return $data;
