@@ -98,4 +98,24 @@ class EmployeeShiftSchedule extends BaseModel
         return $this->hasOne(EmployeeShiftChangeRequest::class, 'shift_schedule_id')->where('status', 'waiting');
     }
 
+    public function replacementUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'replacement_user_id');
+    }
+
+    public function replacementShift(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeShift::class, 'replacement_shift_id');
+    }
+
+    public function rotationSource(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeShiftSchedule::class, 'rotation_source_schedule_id');
+    }
+
+    public function rotationCoverage(): HasOne
+    {
+        return $this->hasOne(EmployeeShiftSchedule::class, 'rotation_source_schedule_id');
+    }
+
 }

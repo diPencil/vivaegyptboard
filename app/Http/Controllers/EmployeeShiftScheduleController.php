@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use App\Models\Company;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Scopes\ActiveScope;
 
@@ -157,15 +158,30 @@ class EmployeeShiftScheduleController extends AccountBaseController
             $final[$employee->id . '#' . $employee->name] = array_replace($dataTillToday, $dataFromTomorrow);
 
             foreach ($employee->shifts as $shift) {
+                $overrideLabel = null;
+                $overrideCode = null;
+                if ($shift->rotationSource && $shift->rotationSource->user) {
+                    $overrideLabel = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . $shift->rotationSource->user->name;
+                    $overrideCode = __('modules.rotationCover');
+                }
                 $dayIndex = Carbon::parse($shift->date)->day;
                 // If a status_type is set on the schedule, render status badge
                 if (!empty($shift->status_type)) {
                     $status = $shift->status_type;
                     switch ($status) {
+                        case 'rotation_day_off':
+                            $label = __('modules.rotationDayOff');
+                            if ($shift->replacementUser) {
+                                $label .= ' - ' . __('modules.coveredBy') . ' ' . $shift->replacementUser->name;
+                            }
+                            $bg = '#E8EEF3';
+                            $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $label . '" style="background-color: ' . $bg . '">' . __('modules.rotationDayOff') . '</button>';
+                            $shiftColorCode[$dayIndex] = $shift->color;
+                            break;
                         case 'day_off':
                             $label = __('modules.dayOff');
                             $bg = '#E8EEF3';
-                            $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $label . '" style="background-color: ' . $bg . '">' . ($shift->shift->shift_short_code ?? __('modules.dayOff')) . '</button>';
+                            $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $label . '" style="background-color: ' . $bg . '">' . (($overrideCode ?? $shift->shift->shift_short_code) ?? __('modules.dayOff')) . '</button>';
                             $shiftColorCode[$dayIndex] = $shift->color;
                             break;
                         case 'unauthorized_absence':
@@ -174,23 +190,23 @@ class EmployeeShiftScheduleController extends AccountBaseController
                             break;
                         default:
                             // fallback to shift rendering
-                            if (isset($shift->shift) && $shift->shift->shift_name == 'Day Off') {
-                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . $shift->shift->shift_short_code . '</button>';
+                            if (isset($shift->shift) && ($overrideLabel ?? $shift->shift->shift_name) == 'Day Off') {
+                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . ($overrideCode ?? $shift->shift->shift_short_code) . '</button>';
                                 $shiftColorCode[$dayIndex] = $shift->color;
                             } else {
-                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . ($shift->shift->color ?? '#ffffff') . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . ($shift->shift->shift_name ?? '') . '">' . ($shift->shift->shift_short_code ?? '') . '</button>';
+                                $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . ($shift->shift->color ?? '#ffffff') . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . ($overrideLabel ?? ($overrideLabel ?? $shift->shift->shift_name) ?? '') . '">' . ($overrideCode ?? ($overrideCode ?? $shift->shift->shift_short_code) ?? '') . '</button>';
                                 $shiftColorCode[$dayIndex] = $shift->color;
                             }
                             break;
                     }
                 } else {
-                    if ($shift->shift->shift_name == 'Day Off') {
-                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . $shift->shift->shift_short_code . '</button>';
+                    if (($overrideLabel ?? $shift->shift->shift_name) == 'Day Off') {
+                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-light border f-10 p-1" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . __('modules.attendance.dayOff') . '" style="background-color: #E8EEF3">' . ($overrideCode ?? $shift->shift->shift_short_code) . '</button>';
                         $shiftColorCode[$dayIndex] = $shift->color;
 
                     }
                     else {
-                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . $shift->shift->shift_name . '">' . $shift->shift->shift_short_code . '</button>';
+                        $final[$employee->id . '#' . $employee->name][$dayIndex] = '<button type="button" class="change-shift'.$isActive.' badge badge-info f-10 p-1" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $shift->date->day . '"  data-toggle="tooltip" data-original-title="' . ($overrideLabel ?? $shift->shift->shift_name) . '">' . ($overrideCode ?? $shift->shift->shift_short_code) . '</button>';
                         $shiftColorCode[$dayIndex] = $shift->color;
                     }
                 }
@@ -339,14 +355,20 @@ class EmployeeShiftScheduleController extends AccountBaseController
             }
 
             foreach ($employee->shifts as $shift) {
+                $overrideLabel = null;
+                $overrideCode = null;
+                if ($shift->rotationSource && $shift->rotationSource->user) {
+                    $overrideLabel = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . $shift->rotationSource->user->name;
+                    $overrideCode = __('modules.rotationCover');
+                }
                 $dateString = Carbon::parse($shift->date)->toDateString();
 
-                if ($shift->shift->shift_name == 'Day Off') {
+                if (($overrideLabel ?? $shift->shift->shift_name) == 'Day Off') {
                     $final[$employee->id . '#' . $employee->name][$dateString] = '<button type="button" class="change-shift-week'.$isActive.' badge as badge-light f-10 p-1 border f-12 py-4 w-100" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $dateString . '" style="background-color: #E8EEF3"><div>' . __('modules.attendance.dayOff') . '<div></button>';
                     $shiftColorCode[$dateString] = $shift->color;
 
                 } else {
-                    $final[$employee->id . '#' . $employee->name][$dateString] = '<button type="button" class="change-shift-week'.$isActive.' badge ass badge-info text-left f-12 py-3 px-2 w-100" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $dateString . '"><div>' . $shift->shift->shift_name . '<div>';
+                    $final[$employee->id . '#' . $employee->name][$dateString] = '<button type="button" class="change-shift-week'.$isActive.' badge ass badge-info text-left f-12 py-3 px-2 w-100" style="background-color: ' . $shift->shift->color . '" data-user-id="' . $shift->user_id . '" data-attendance-date="' . $dateString . '"><div>' . ($overrideLabel ?? $shift->shift->shift_name) . '<div>';
 
                     if ($shift->shift->shift_type == 'strict')
                     {
@@ -439,7 +461,37 @@ class EmployeeShiftScheduleController extends AccountBaseController
         $this->employee = User::findOrFail($userid);
         $this->shiftSchedule = EmployeeShiftSchedule::with('pendingRequestChange')->where('user_id', $userid)->where('date', $this->date)->first();
         $this->employeeShifts = EmployeeShift::all();
-        $this->users = User::where('status', 'active')->get();
+        
+        $allActive = User::with('employeeDetail')->where('status', 'active')->where('id', '!=', $userid)->where('company_id', company()->id)->get();
+        // Sort to prefer same department
+        $empDept = $this->employee->employeeDetail->department_id ?? null;
+        $this->users = $allActive->sortByDesc(function($u) use ($empDept) {
+            return ($u->employeeDetail->department_id ?? 0) == $empDept ? 1 : 0;
+        })->values();
+
+        // Pass leaves/shifts for these users so JS can disable them if needed, or filter them out
+        // Actually, we'll let JS handle disabling, we just pass the data or we can filter in PHP.
+        // It's easier to filter in PHP for conflict-free users unless they are already the selected replacement.
+        $existingReplacementId = $this->shiftSchedule->replacement_user_id ?? null;
+        
+        $conflictingUsers = \App\Models\EmployeeShiftSchedule::whereIn('user_id', $this->users->pluck('id'))
+            ->where('date', $this->date)
+            ->where('status_type', '!=', 'day_off')
+            ->where('id', '!=', ($this->shiftSchedule->rotationCoverage->id ?? 0))
+            ->pluck('user_id')->toArray();
+            
+        $leaveUsers = \App\Models\Leave::whereIn('user_id', $this->users->pluck('id'))
+            ->whereDate('leave_date', $this->date)
+            ->where('status', 'approved')
+            ->pluck('user_id')->toArray();
+            
+        $this->users = $this->users->filter(function($u) use ($conflictingUsers, $leaveUsers, $existingReplacementId) {
+            if ($u->id == $existingReplacementId) return true;
+            if (in_array($u->id, $conflictingUsers)) return false;
+            if (in_array($u->id, $leaveUsers)) return false;
+            return true;
+        });
+
         // Approved leaves for this employee on this date (if any)
         $this->approvedLeaves = \App\Models\Leave::where('user_id', $userid)
             ->whereDate('leave_date', $this->date)
@@ -466,6 +518,11 @@ class EmployeeShiftScheduleController extends AccountBaseController
         // conditional validations
         if ($status == 'working_shift') {
             $validator->sometimes('employee_shift_id', 'required|exists:employee_shifts,id', function () use ($status) { return true; });
+        }
+
+        if ($status == 'rotation_day_off') {
+            $validator->sometimes('replacement_user_id', 'required|exists:users,id', function () use ($status) { return true; });
+            $validator->sometimes('replacement_shift_id', 'required|exists:employee_shifts,id', function () use ($status) { return true; });
         }
 
         if ($status == 'half_day') {
@@ -529,7 +586,94 @@ class EmployeeShiftScheduleController extends AccountBaseController
         $shift->added_by = user()->id;
         $shift->last_updated_by = user()->id;
 
-        $shift->save();
+        DB::transaction(function () use ($request, &$shift, $status) {
+            if ($status == 'rotation_day_off') {
+                if ($request->replacement_user_id == $request->user_id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => 'Cannot replace self.']);
+                }
+                $repUser = User::where('id', $request->replacement_user_id)->where('company_id', company()->id)->where('status', 'active')->first();
+                $repShift = EmployeeShift::where('id', $request->replacement_shift_id)->where('company_id', company()->id)->first();
+                if (!$repUser || !$repShift) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => 'Invalid replacement or cross-company attempt.']);
+                }
+                
+                // Re-check conflict with lock
+                $existingRep = EmployeeShiftSchedule::where('user_id', $request->replacement_user_id)
+                    ->where('date', $request->shift_date)->lockForUpdate()->first();
+                
+                if ($existingRep && $existingRep->status_type != 'day_off' && $existingRep->rotation_source_schedule_id != $shift->id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => __('modules.replacementHasConflict')]);
+                }
+                $leaveExists = \App\Models\Leave::where('user_id', $request->replacement_user_id)->whereDate('leave_date', $request->shift_date)->where('status', 'approved')->lockForUpdate()->exists();
+                if ($leaveExists) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => __('modules.replacementOnApprovedLeave')]);
+                }
+
+                $shift->replacement_user_id = $request->replacement_user_id;
+                $shift->replacement_shift_id = $request->replacement_shift_id;
+            } else {
+                $shift->replacement_user_id = null;
+                $shift->replacement_shift_id = null;
+            }
+
+            $shift->save();
+
+            // Handle rotation coverage
+            if ($status == 'rotation_day_off') {
+                $coverage = EmployeeShiftSchedule::where('user_id', $request->replacement_user_id)->where('date', $request->shift_date)->first();
+                if (!$coverage) {
+                    $coverage = new EmployeeShiftSchedule();
+                    $coverage->user_id = $request->replacement_user_id;
+                    $coverage->date = $request->shift_date;
+                    $coverage->remarks = 'auto_coverage';
+                } else if ($coverage->rotation_source_schedule_id != $shift->id) {
+                    // It was a day_off, we are reusing it
+                    $coverage->remarks = 'reused_day_off_' . $coverage->employee_shift_id;
+                }
+                
+                $coverage->employee_shift_id = $request->replacement_shift_id;
+                $coverage->status_type = 'working_shift'; 
+                $coverage->rotation_source_schedule_id = $shift->id;
+                $coverage->company_id = company()->id;
+                $coverage->added_by = user()->id;
+                $coverage->last_updated_by = user()->id;
+                $coverage->save();
+                
+                // If there's any old auto-generated coverage for a PREVIOUS replacement user, drop it safely
+                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->where('id', '!=', $coverage->id)->get();
+                foreach($oldCoverages as $oldCov) {
+                    if (str_starts_with($oldCov->remarks ?? '', 'reused_day_off_')) {
+                        $oldCov->status_type = 'day_off';
+                        $oldCov->employee_shift_id = str_replace('reused_day_off_', '', $oldCov->remarks);
+                        $oldCov->rotation_source_schedule_id = null;
+                        $oldCov->remarks = null;
+                        $oldCov->save();
+                    } else if ($oldCov->remarks == 'auto_coverage') {
+                        $oldCov->delete();
+                    } else {
+                        $oldCov->rotation_source_schedule_id = null;
+                        $oldCov->save();
+                    }
+                }
+            } else {
+                // Not rotation, clear any auto-generated coverage records 
+                $coverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
+                foreach($coverages as $cov) {
+                    if (str_starts_with($cov->remarks ?? '', 'reused_day_off_')) {
+                        $cov->status_type = 'day_off';
+                        $cov->employee_shift_id = str_replace('reused_day_off_', '', $cov->remarks);
+                        $cov->rotation_source_schedule_id = null;
+                        $cov->remarks = null;
+                        $cov->save();
+                    } else if ($cov->remarks == 'auto_coverage') {
+                        $cov->delete();
+                    } else {
+                        $cov->rotation_source_schedule_id = null;
+                        $cov->save();
+                    }
+                }
+            }
+        });
 
         if ($request->hasFile('file')) {
             $fileName = Files::uploadLocalOrS3($request->file, 'employee-shift-file/' . $shift->id);
@@ -614,7 +758,91 @@ class EmployeeShiftScheduleController extends AccountBaseController
             $shift->file = Files::uploadLocalOrS3($request->file, 'employee-shift-file/' . $id);
         }
 
-        $shift->save();
+        DB::transaction(function () use ($request, &$shift, $status) {
+            if ($status == 'rotation_day_off') {
+                if ($request->replacement_user_id == $shift->user_id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => 'Cannot replace self.']);
+                }
+                $repUser = User::where('id', $request->replacement_user_id)->where('company_id', company()->id)->where('status', 'active')->first();
+                $repShift = EmployeeShift::where('id', $request->replacement_shift_id)->where('company_id', company()->id)->first();
+                if (!$repUser || !$repShift) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => 'Invalid replacement or cross-company attempt.']);
+                }
+                
+                // Re-check conflict with lock
+                $existingRep = EmployeeShiftSchedule::where('user_id', $request->replacement_user_id)
+                    ->where('date', $shift->date)->lockForUpdate()->first();
+                
+                if ($existingRep && $existingRep->status_type != 'day_off' && $existingRep->rotation_source_schedule_id != $shift->id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => __('modules.replacementHasConflict')]);
+                }
+                $leaveExists = \App\Models\Leave::where('user_id', $request->replacement_user_id)->whereDate('leave_date', $shift->date)->where('status', 'approved')->lockForUpdate()->exists();
+                if ($leaveExists) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['replacement_user_id' => __('modules.replacementOnApprovedLeave')]);
+                }
+
+                $shift->replacement_user_id = $request->replacement_user_id;
+                $shift->replacement_shift_id = $request->replacement_shift_id;
+            } else {
+                $shift->replacement_user_id = null;
+                $shift->replacement_shift_id = null;
+            }
+
+            $shift->save();
+
+            // Handle rotation coverage
+            if ($status == 'rotation_day_off') {
+                $coverage = EmployeeShiftSchedule::where('user_id', $request->replacement_user_id)->where('date', $shift->date)->first();
+                if (!$coverage) {
+                    $coverage = new EmployeeShiftSchedule();
+                    $coverage->user_id = $request->replacement_user_id;
+                    $coverage->date = $shift->date;
+                    $coverage->remarks = 'auto_coverage';
+                } else if ($coverage->rotation_source_schedule_id != $shift->id) {
+                    $coverage->remarks = 'reused_day_off_' . $coverage->employee_shift_id;
+                }
+                
+                $coverage->employee_shift_id = $request->replacement_shift_id;
+                $coverage->status_type = 'working_shift'; 
+                $coverage->rotation_source_schedule_id = $shift->id;
+                $coverage->company_id = company()->id;
+                $coverage->added_by = user()->id;
+                $coverage->last_updated_by = user()->id;
+                $coverage->save();
+                
+                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->where('id', '!=', $coverage->id)->get();
+                foreach($oldCoverages as $oldCov) {
+                    if (str_starts_with($oldCov->remarks ?? '', 'reused_day_off_')) {
+                        $oldCov->status_type = 'day_off';
+                        $oldCov->employee_shift_id = str_replace('reused_day_off_', '', $oldCov->remarks);
+                        $oldCov->rotation_source_schedule_id = null;
+                        $oldCov->remarks = null;
+                        $oldCov->save();
+                    } else if ($oldCov->remarks == 'auto_coverage') {
+                        $oldCov->delete();
+                    } else {
+                        $oldCov->rotation_source_schedule_id = null;
+                        $oldCov->save();
+                    }
+                }
+            } else {
+                $coverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
+                foreach($coverages as $cov) {
+                    if (str_starts_with($cov->remarks ?? '', 'reused_day_off_')) {
+                        $cov->status_type = 'day_off';
+                        $cov->employee_shift_id = str_replace('reused_day_off_', '', $cov->remarks);
+                        $cov->rotation_source_schedule_id = null;
+                        $cov->remarks = null;
+                        $cov->save();
+                    } else if ($cov->remarks == 'auto_coverage') {
+                        $cov->delete();
+                    } else {
+                        $cov->rotation_source_schedule_id = null;
+                        $cov->save();
+                    }
+                }
+            }
+        });
 
         return Reply::success(__('messages.employeeShiftAdded'));
     }

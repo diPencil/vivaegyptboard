@@ -45,6 +45,29 @@
 
                 </div>
 
+                <!-- Rotation Block -->
+                <div class="col-sm-12 rotation-block" style="display: none;">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <x-forms.select fieldName="replacement_user_id" fieldId="replacement_user_id" :fieldLabel="__('modules.replacementEmployee')" fieldRequired="true" search="true">
+                                <option value="">--</option>
+                                @foreach ($users as $user)
+                                    <option value="{{ $user->id }}" {{ (!is_null($shiftSchedule) && $shiftSchedule->replacement_user_id == $user->id) ? 'selected' : '' }} data-content="<x-employee :user='$user' />"></option>
+                                @endforeach
+                            </x-forms.select>
+                        </div>
+                        <div class="col-sm-6">
+                            <x-forms.select fieldName="replacement_shift_id" fieldId="replacement_shift_id" :fieldLabel="__('modules.replacementShift')" fieldRequired="true">
+                                <option value="">--</option>
+                                @foreach ($employeeShifts as $item)
+                                    @if ($item->shift_name != 'Day Off')
+                                        <option value="{{ $item->id }}" {{ (!is_null($shiftSchedule) && $shiftSchedule->replacement_shift_id == $item->id) ? 'selected' : '' }} data-content="<i class='fa fa-circle mr-2' style='color: {{ $item->color }}'></i> {{ $item->shift_name }} [{{$item->office_start_time}} - {{$item->office_end_time}}]"></option>
+                                    @endif
+                                @endforeach
+                            </x-forms.select>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-sm-12 roster-shift-block" style="display: none;">
                     <x-forms.select fieldName="employee_shift_id" fieldId="employee_shift_id" :fieldLabel="__('modules.attendance.shift')">
                         @foreach ($employeeShifts as $item)
@@ -134,6 +157,12 @@
         function updateRosterVisibility(){
             var status = $('#status_type').val();
             
+            if (status == 'rotation_day_off') {
+                $('.rotation-block').show();
+            } else {
+                $('.rotation-block').hide();
+            }
+
             // Handle Employee Shift Dropdown Options
             var shiftSelect = $('#employee_shift_id');
             var hasWorkingShiftSelected = false;
