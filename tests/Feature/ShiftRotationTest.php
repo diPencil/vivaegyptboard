@@ -2,8 +2,7 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\EmployeeShift;
@@ -12,24 +11,25 @@ use App\Models\Company;
 use App\Models\Leave;
 use App\Models\LeaveType;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ShiftRotationTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
         parent::setUp();
-        // Setup initial data if needed or rely on factories.
-        // Assuming there's a basic seed or we create manually.
-        $this->company = Company::factory()->create();
-        $this->admin = User::factory()->create(['company_id' => $this->company->id]);
-        $this->originalEmployee = User::factory()->create(['company_id' => $this->company->id, 'status' => 'active']);
-        $this->replacementEmployee = User::factory()->create(['company_id' => $this->company->id, 'status' => 'active']);
-        $this->dayOffShift = EmployeeShift::factory()->create(['company_id' => $this->company->id, 'shift_name' => 'Day Off']);
-        $this->workingShift = EmployeeShift::factory()->create(['company_id' => $this->company->id, 'shift_name' => 'General']);
         
-        // Login as admin
+        $this->company = Company::firstOrCreate(['id' => 1], ['company_name' => 'Test']);
+        $this->admin = User::firstOrCreate(['id' => 1], ['company_id' => $this->company->id, 'name' => 'Admin', 'email' => 'admin@test.com', 'password' => '123']);
+        $this->originalEmployee = User::firstOrCreate(['id' => 2], ['company_id' => $this->company->id, 'name' => 'O', 'email' => 'o@test.com', 'password' => '123', 'status' => 'active']);
+        $this->replacementEmployee = User::firstOrCreate(['id' => 3], ['company_id' => $this->company->id, 'name' => 'R', 'email' => 'r@test.com', 'password' => '123', 'status' => 'active']);
+        $this->crossCompanyEmployee = User::firstOrCreate(['id' => 4], ['company_id' => 2, 'name' => 'X', 'email' => 'x@test.com', 'password' => '123', 'status' => 'active']);
+        $this->dayOffShift = EmployeeShift::firstOrCreate(['id' => 1], ['company_id' => $this->company->id, 'shift_name' => 'Day Off', 'shift_short_code' => 'DO', 'color' => '#000', 'office_start_time' => '09:00', 'office_end_time' => '17:00']);
+        $this->workingShift = EmployeeShift::firstOrCreate(['id' => 2], ['company_id' => $this->company->id, 'shift_name' => 'General', 'shift_short_code' => 'GE', 'color' => '#000', 'office_start_time' => '09:00', 'office_end_time' => '17:00']);
+        $this->crossCompanyShift = EmployeeShift::firstOrCreate(['id' => 3], ['company_id' => 2, 'shift_name' => 'X Shift', 'shift_short_code' => 'XS', 'color' => '#000', 'office_start_time' => '09:00', 'office_end_time' => '17:00']);
+        
         $this->actingAs($this->admin);
     }
 
