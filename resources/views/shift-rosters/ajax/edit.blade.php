@@ -36,6 +36,7 @@
                     <x-forms.select fieldName="status_type" fieldId="status_type" :fieldLabel="__('modules.dayStatus')">
                         <option value="working_shift" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'working_shift' ? 'selected' : '' }}>@lang('modules.workingShift')</option>
                         <option value="day_off" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'day_off' ? 'selected' : '' }}>@lang('modules.dayOff')</option>
+                        <option value="rotation_day_off" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'rotation_day_off' ? 'selected' : '' }}>@lang('modules.rotationDayOff')</option>
                         <option value="unauthorized_absence" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'unauthorized_absence' ? 'selected' : '' }}>@lang('modules.unauthorizedAbsence')</option>
                         <option value="half_day" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'half_day' ? 'selected' : '' }}>@lang('modules.halfDay')</option>
                         <option value="early_departure" {{ !is_null($shiftSchedule) && $shiftSchedule->status_type == 'early_departure' ? 'selected' : '' }}>@lang('modules.earlyDeparture')</option>

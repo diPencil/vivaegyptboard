@@ -631,18 +631,11 @@ class EmployeeShiftScheduleController extends AccountBaseController
                     $coverage->rotation_coverage_mode = 'reused_day_off' . $coverage->employee_shift_id;
                 }
                 
-                $coverage->employee_shift_id = $request->replacement_shift_id;
-                $coverage->status_type = 'working_shift'; 
-                $coverage->rotation_source_schedule_id = $shift->id;
-                $coverage->company_id = company()->id;
-                $coverage->added_by = user()->id;
-                $coverage->last_updated_by = user()->id;
-                $coverage->save();
-                
                 // If there's any old auto-generated coverage for a PREVIOUS replacement user, drop it safely
-                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->where('id', '!=', $coverage->id)->get();
+                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
                 foreach($oldCoverages as $oldCov) {
-                    if ($oldCov->rotation_coverage_mode == 'reused_day_off') {
+                    if ($coverage && $oldCov->id === $coverage->id) continue;
+                    if (str_starts_with($oldCov->rotation_coverage_mode, 'reused_day_off')) {
                         $oldCov->status_type = 'day_off';
                         $oldCov->employee_shift_id = $oldCov->rotation_previous_shift_id;
                         $oldCov->rotation_source_schedule_id = null;
@@ -655,6 +648,14 @@ class EmployeeShiftScheduleController extends AccountBaseController
                         $oldCov->save();
                     }
                 }
+
+                $coverage->employee_shift_id = $request->replacement_shift_id;
+                $coverage->status_type = 'working_shift'; 
+                $coverage->rotation_source_schedule_id = $shift->id;
+                $coverage->company_id = company()->id;
+                $coverage->added_by = user()->id;
+                $coverage->last_updated_by = user()->id;
+                $coverage->save();
             } else {
                 // Not rotation, clear any auto-generated coverage records 
                 $coverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
@@ -802,18 +803,10 @@ class EmployeeShiftScheduleController extends AccountBaseController
                     $coverage->rotation_coverage_mode = 'reused_day_off';
                     $coverage->rotation_previous_shift_id = $coverage->employee_shift_id;
                 }
-                
-                $coverage->employee_shift_id = $request->replacement_shift_id;
-                $coverage->status_type = 'working_shift'; 
-                $coverage->rotation_source_schedule_id = $shift->id;
-                $coverage->company_id = company()->id;
-                $coverage->added_by = user()->id;
-                $coverage->last_updated_by = user()->id;
-                $coverage->save();
-                
-                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->where('id', '!=', $coverage->id)->get();
+                $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
                 foreach($oldCoverages as $oldCov) {
-                    if ($oldCov->rotation_coverage_mode == 'reused_day_off') {
+                    if ($coverage && $oldCov->id === $coverage->id) continue;
+                    if (str_starts_with($oldCov->rotation_coverage_mode, 'reused_day_off')) {
                         $oldCov->status_type = 'day_off';
                         $oldCov->employee_shift_id = $oldCov->rotation_previous_shift_id;
                         $oldCov->rotation_source_schedule_id = null;
@@ -827,6 +820,14 @@ class EmployeeShiftScheduleController extends AccountBaseController
                         $oldCov->save();
                     }
                 }
+
+                $coverage->employee_shift_id = $request->replacement_shift_id;
+                $coverage->status_type = 'working_shift'; 
+                $coverage->rotation_source_schedule_id = $shift->id;
+                $coverage->company_id = company()->id;
+                $coverage->added_by = user()->id;
+                $coverage->last_updated_by = user()->id;
+                $coverage->save();
             } else {
                 $coverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
                 foreach($coverages as $cov) {
