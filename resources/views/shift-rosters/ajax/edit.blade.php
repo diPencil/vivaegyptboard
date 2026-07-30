@@ -53,7 +53,7 @@
                             <x-forms.select fieldName="replacement_user_id" fieldId="replacement_user_id" :fieldLabel="__('modules.replacementEmployee')" fieldRequired="true" search="true">
                                 <option value="">--</option>
                                 @foreach ($users as $user)
-                                    <option value="{{ $user->id }}" {{ (!is_null($shiftSchedule) && $shiftSchedule->replacement_user_id == $user->id) ? 'selected' : '' }} data-content="<x-employee :user='$user' />"></option>
+                                    <option value="{{ $user->id }}" {{ (!is_null($shiftSchedule) && $shiftSchedule->replacement_user_id == $user->id) ? 'selected' : '' }}>{{ $user->name }}</option>
                                 @endforeach
                             </x-forms.select>
                         </div>
