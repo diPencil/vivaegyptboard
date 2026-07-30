@@ -64,7 +64,7 @@ class ShiftRotationTest extends TestCase
             'date' => $date,
             'status_type' => 'working_shift',
             'rotation_source_schedule_id' => $originalShift->id,
-            'remarks' => 'auto_coverage',
+            'rotation_coverage_mode' => 'auto_generated',
         ]);
     }
 
@@ -100,7 +100,7 @@ class ShiftRotationTest extends TestCase
             'date' => $date,
             'status_type' => 'working_shift',
             'rotation_source_schedule_id' => $originalShift->id,
-            'remarks' => 'reused_day_off_' . $this->dayOffShift->id,
+            'rotation_coverage_mode' => 'reused_day_off', 'rotation_previous_shift_id' => $this->dayOffShift->id,
         ]);
     }
 
@@ -142,7 +142,7 @@ class ShiftRotationTest extends TestCase
             'date' => $date,
             'status_type' => 'day_off',
             'rotation_source_schedule_id' => null,
-            'remarks' => null,
+            'rotation_coverage_mode' => null, 'rotation_previous_shift_id' => null,
             'employee_shift_id' => $this->dayOffShift->id,
         ]);
     }

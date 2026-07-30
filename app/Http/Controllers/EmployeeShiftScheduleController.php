@@ -797,9 +797,10 @@ class EmployeeShiftScheduleController extends AccountBaseController
                     $coverage = new EmployeeShiftSchedule();
                     $coverage->user_id = $request->replacement_user_id;
                     $coverage->date = $shift->date;
-                    $coverage->remarks = 'auto_coverage';
+                    $coverage->rotation_coverage_mode = 'auto_generated';
                 } else if ($coverage->rotation_source_schedule_id != $shift->id) {
-                    $coverage->remarks = 'reused_day_off_' . $coverage->employee_shift_id;
+                    $coverage->rotation_coverage_mode = 'reused_day_off';
+                    $coverage->rotation_previous_shift_id = $coverage->employee_shift_id;
                 }
                 
                 $coverage->employee_shift_id = $request->replacement_shift_id;
@@ -812,13 +813,14 @@ class EmployeeShiftScheduleController extends AccountBaseController
                 
                 $oldCoverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->where('id', '!=', $coverage->id)->get();
                 foreach($oldCoverages as $oldCov) {
-                    if (str_starts_with($oldCov->remarks ?? '', 'reused_day_off_')) {
+                    if ($oldCov->rotation_coverage_mode == 'reused_day_off') {
                         $oldCov->status_type = 'day_off';
-                        $oldCov->employee_shift_id = str_replace('reused_day_off_', '', $oldCov->remarks);
+                        $oldCov->employee_shift_id = $oldCov->rotation_previous_shift_id;
                         $oldCov->rotation_source_schedule_id = null;
-                        $oldCov->remarks = null;
+                        $oldCov->rotation_coverage_mode = null;
+                        $oldCov->rotation_previous_shift_id = null;
                         $oldCov->save();
-                    } else if ($oldCov->remarks == 'auto_coverage') {
+                    } else if ($oldCov->rotation_coverage_mode == 'auto_generated') {
                         $oldCov->delete();
                     } else {
                         $oldCov->rotation_source_schedule_id = null;
@@ -828,13 +830,14 @@ class EmployeeShiftScheduleController extends AccountBaseController
             } else {
                 $coverages = EmployeeShiftSchedule::where('rotation_source_schedule_id', $shift->id)->get();
                 foreach($coverages as $cov) {
-                    if (str_starts_with($cov->remarks ?? '', 'reused_day_off_')) {
+                    if ($cov->rotation_coverage_mode == 'reused_day_off') {
                         $cov->status_type = 'day_off';
-                        $cov->employee_shift_id = str_replace('reused_day_off_', '', $cov->remarks);
+                        $cov->employee_shift_id = $cov->rotation_previous_shift_id;
                         $cov->rotation_source_schedule_id = null;
-                        $cov->remarks = null;
+                        $cov->rotation_coverage_mode = null;
+                        $cov->rotation_previous_shift_id = null;
                         $cov->save();
-                    } else if ($cov->remarks == 'auto_coverage') {
+                    } else if ($cov->rotation_coverage_mode == 'auto_generated') {
                         $cov->delete();
                     } else {
                         $cov->rotation_source_schedule_id = null;

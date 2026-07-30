@@ -2421,4 +2421,16 @@ return array(
         'dayOff' => 'Day Off',
         'halfDay' => 'Half Day',
         'approvedBy' => 'Approved By',
+
+    'rotationDayOff' => 'Rotation Day Off',
+    'rotationCover' => 'Rotation Cover',
+    'replacementEmployee' => 'Replacement Employee',
+    'replacementShift' => 'Replacement Shift',
+    'coveredBy' => 'Covered By',
+    'coveringFor' => 'Covering For',
+    'replacementEmployeeRequired' => 'Replacement employee is required.',
+    'replacementShiftRequired' => 'Replacement shift is required.',
+    'replacementHasConflict' => 'The selected replacement employee already has a conflicting shift on this date.',
+    'replacementOnApprovedLeave' => 'The selected replacement employee is on approved leave on this date.',
+    'rotationSaveFailed' => 'Failed to save rotation.',
 );
