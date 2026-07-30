@@ -162,7 +162,7 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
                         $att->rotation_details = __('modules.coveredBy') . ' ' . $att->rotation_employee;
                         
                         if (!$attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->count()) {
-                            $att->status = $att->roster_status;
+                            $att->status = '--';
                             $attendances->push($att);
                         } else {
                             $existing = $attendances->whereBetween('date', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])->first();
@@ -172,7 +172,7 @@ class AttendanceByMemberExport implements FromCollection, WithHeadings, WithMapp
                                 $existing->rotation_employee = $att->rotation_employee;
                                 $existing->rotation_details = $att->rotation_details;
                                 if ($existing->status == 'Absent' || $existing->status == '') {
-                                    $existing->status = $att->roster_status;
+                                    $existing->status = '--';
                                 }
                             }
                         }

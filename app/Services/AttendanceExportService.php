@@ -211,11 +211,17 @@ class AttendanceExportService
                         }
 
                         // Override status for Rotation Day Off and normal Day Off so they aren't Absent
+                        $monthly_status = $status;
+                        $rotation_comment = '';
+
                         if ($dayShift) {
                             if ($dayShift->status_type == 'rotation_day_off') {
-                                $status = __('modules.rotationDayOff') . ' (' . __('modules.coveredBy') . ': ' . $norm['rotation_employee'] . ')';
+                                $status = '--'; // Must remain separate from Roster Status in Details
+                                $monthly_status = __('modules.rotationDayOff');
+                                $rotation_comment = __('modules.rotationDayOff') . "\n" . __('modules.coveredBy') . ': ' . $norm['rotation_employee'] . "\nScheduled Shift: " . $norm['scheduled_shift'];
                             } elseif ($dayShift->shift && $dayShift->shift->shift_name == 'Day Off') {
                                 $status = $dayShift->shift->shift_name;
+                                $monthly_status = $status;
                             }
                         }
 
@@ -225,8 +231,9 @@ class AttendanceExportService
                         $employeedata[$employee_index]['dates'][$date->day] = [
                             'total_hours' => 0,
                             'comments' => [
-                                'status' => $status,
+                                'status' => $monthly_status,
                                 'clock_in' => '',
+                                'rotation' => $rotation_comment,
                             ]
                         ];
                     } else {
@@ -236,6 +243,7 @@ class AttendanceExportService
                             'comments' => [
                                 'status' => '--',
                                 'clock_in' => '',
+                                'rotation' => '',
                             ]
                         ];
                     }
@@ -269,9 +277,9 @@ class AttendanceExportService
                     }
                     
                     foreach ($dayAttendances as $att) {
-                        $clockInTime = Carbon::parse($att->clock_in_time)->timezone(company()->timezone);
+                        $clockInTime = \Carbon\Carbon::parse($att->clock_in_time)->timezone(company()->timezone);
                         if (!is_null($att->clock_out_time)) {
-                            $clockOutTime = Carbon::parse($att->clock_out_time)->timezone(company()->timezone);
+                            $clockOutTime = \Carbon\Carbon::parse($att->clock_out_time)->timezone(company()->timezone);
                             $total_hours += $clockOutTime->diffInMinutes($clockInTime);
                         }
                         
@@ -282,8 +290,9 @@ class AttendanceExportService
                     $norm['worked_hours'] = \Carbon\CarbonInterval::formatHuman($total_hours);
 
                     // Add rotation cover visual to Monthly Summary cell comment if applicable
+                    $rotation_comment = '';
                     if ($dayShift && $dayShift->rotation_source_schedule_id != null) {
-                        $status .= ' | ' . __('modules.rotationCover') . ' (' . __('modules.coveringFor') . ': ' . $norm['rotation_employee'] . ')';
+                        $rotation_comment = __('modules.rotationCover') . "\n" . __('modules.coveringFor') . ': ' . $norm['rotation_employee'] . "\nScheduled Shift: " . $norm['scheduled_shift'];
                     }
                     
                     $employeedata[$employee_index]['dates'][$date->day] = [
@@ -291,6 +300,7 @@ class AttendanceExportService
                         'comments' => [
                             'status' => $status,
                             'clock_in' => $clock_in_str,
+                            'rotation' => $rotation_comment,
                         ]
                     ];
                 }

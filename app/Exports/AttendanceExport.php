@@ -56,6 +56,9 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         $this->enddate = $enddate;
         $this->employees = $employees;
         $this->employeedata = $employeedata;
+        
+        self::$startDate = $startdate;
+        self::$endDate = $enddate;
     }
 
     public function title(): string
@@ -91,12 +94,28 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         for ($index = 0; $index < $total; $index++) {
             if (isset($emp_status[$index]['dates'])) {
                 foreach ($dateToColIndex as $day => $colIdx) {
-                    if (isset($emp_status[$index]['dates'][$day]) && $emp_status[$index]['dates'][$day]['total_hours'] > 0) {
-                        $event->sheet->getDelegate()->getComment($arr[$colIdx] . $j)->getText()->createTextRun(
-                            ['Status : ' . $emp_status[$index]['dates'][$day]['comments']['status'],
-                                $emp_status[$index]['dates'][$day]['comments']['clock_in'],
-                            ]
-                        );
+                    if (isset($emp_status[$index]['dates'][$day])) {
+                        $cellData = $emp_status[$index]['dates'][$day];
+                        $commentStr = '';
+                        
+                        if (!empty($cellData['comments']['rotation'])) {
+                            $commentStr .= $cellData['comments']['rotation'];
+                        }
+                        
+                        if ($cellData['total_hours'] > 0) {
+                            if (!empty($commentStr)) {
+                                $commentStr .= "\n";
+                            }
+                            $commentStr .= 'Status : ' . $cellData['comments']['status'];
+                            if (!empty($cellData['comments']['clock_in'])) {
+                                $commentStr .= "\n" . trim($cellData['comments']['clock_in']);
+                            }
+                        }
+
+                        if (!empty($commentStr)) {
+                            error_log("Setting comment on " . $arr[$colIdx] . $j . ": " . $commentStr);
+                            $event->sheet->getDelegate()->getComment($arr[$colIdx] . $j)->getText()->createTextRun($commentStr);
+                        }
                     }
                 }
             }
