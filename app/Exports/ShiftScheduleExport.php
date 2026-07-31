@@ -206,7 +206,12 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                                 }
                                 $label = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . ($shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--') . ' (' . ($shift->shift ? $shift->shift->shift_name : '') . ' ' . $timeStr . ')';
                             } else {
-                                $label = $shift->shift->shift_name ?? '';
+                                // Normal working shift: show name + time range
+                                $timeStr = '';
+                                if ($shift->shift && $shift->shift->shift_name !== 'Day Off') {
+                                    $timeStr = ' ' . \Carbon\Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . \Carbon\Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
+                                }
+                                $label = ($shift->shift->shift_name ?? '') . $timeStr;
                             }
                             break;
                     }
@@ -218,7 +223,12 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                         }
                         $label = __('modules.rotationCover') . ' - ' . __('modules.coveringFor') . ' ' . ($shift->rotationSource && $shift->rotationSource->user ? $shift->rotationSource->user->name : '--') . ' (' . ($shift->shift ? $shift->shift->shift_name : '') . ' ' . $timeStr . ')';
                     } else {
-                        $label = $shift->shift->shift_name;
+                        // Normal working shift (no status_type): show name + time range
+                        $timeStr = '';
+                        if ($shift->shift && $shift->shift->shift_name !== 'Day Off') {
+                            $timeStr = ' ' . \Carbon\Carbon::parse($shift->shift->office_start_time)->format(company()->time_format) . ' - ' . \Carbon\Carbon::parse($shift->shift->office_end_time)->format(company()->time_format);
+                        }
+                        $label = ($shift->shift->shift_name ?? '') . $timeStr;
                     }
                 }
 
@@ -249,15 +259,9 @@ class ShiftScheduleExport implements FromCollection, WithHeadings, WithMapping, 
                 }
             }
 
-            foreach ($this->holidays as $holiday) {
-                if (in_array($holiday->date->day, array_keys($employeedata[$employee_index]['dates']))) {
-                    if ($employeedata[$employee_index]['dates'][$holiday->date->day] == 'Absent' || $employeedata[$employee_index]['dates'][$holiday->date->day] == '--') {
-                        $employeedata[$employee_index]['dates'][$holiday->date->day] = 'Holiday';
-                        $holidayOccasions[$holiday->date->day] = $holiday->occassion;
-                        $shiftColorCode[$holiday->date->day] = '';
-                    }
-                }
-            }
+            // NOTE: Holidays are Attendance events, not roster events.
+            // The Shift Roster must not show 'Holiday'. Leave the scheduled shift label as-is,
+            // or '--' if no schedule exists. Do not override with 'Holiday'.
 
             $employee_index++;
             $emp_attendance = 1;

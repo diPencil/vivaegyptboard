@@ -208,7 +208,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             if (isset($employeedata['dates'][$day])) {
                 $emp_status = $employeedata['dates'][$day]['comments']['status'];
 
-                if (str_contains($emp_status, 'Holiday') || str_contains($emp_status, 'Rotation Day Off') || str_contains($emp_status, 'Rotation Cover') || $employeedata['dates'][$day]['total_hours'] < 1) {
+                if (str_contains($emp_status, 'Holiday') || str_contains($emp_status, 'Rotation Day Off') || str_contains($emp_status, 'Rotation Cover') || $emp_status === 'On Leave' || $emp_status === 'Day Off' || $emp_status === 'Absent' || $emp_status === 'Half Day' || $employeedata['dates'][$day]['total_hours'] < 1) {
                     $data[] = $emp_status;
                 }
                 else {

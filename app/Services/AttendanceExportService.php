@@ -197,7 +197,7 @@ class AttendanceExportService
                     if (!$isFuture) {
                         $status = 'Absent';
                         if ($dayLeave) {
-                            $status = 'Leave';
+                            $status = 'On Leave';
                             $norm['leave_type'] = $dayLeave->type ? $dayLeave->type->type_name : '--';
                         }
                         // Holidays logic for user
@@ -210,18 +210,18 @@ class AttendanceExportService
                             }
                         }
 
-                        // Override status for Rotation Day Off and normal Day Off so they aren't Absent
+                        // Override status for Rotation Day Off and normal Day Off, but never override Holiday
                         $monthly_status = $status;
                         $rotation_comment = '';
 
-                        if ($dayShift) {
+                        if ($dayShift && $status !== 'Holiday') {
                             if ($dayShift->status_type == 'rotation_day_off') {
-                                $status = '--'; // Must remain separate from Roster Status in Details
+                                $status = '--'; // Roster Status column carries this, Attendance Status stays blank
                                 $monthly_status = __('modules.rotationDayOff');
                                 $rotation_comment = __('modules.rotationDayOff') . "\n" . __('modules.coveredBy') . ': ' . $norm['rotation_employee'] . "\nScheduled Shift: " . $norm['scheduled_shift'];
-                            } elseif ($dayShift->shift && $dayShift->shift->shift_name == 'Day Off') {
-                                $status = $dayShift->shift->shift_name;
-                                $monthly_status = $status;
+                            } elseif ($dayShift->status_type == 'day_off' || ($dayShift->shift && $dayShift->shift->shift_name == 'Day Off')) {
+                                $status = '--'; // Day Off is a Roster Status, not an Attendance Status
+                                $monthly_status = 'Day Off';
                             }
                         }
 
