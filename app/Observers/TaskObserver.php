@@ -87,6 +87,13 @@ class TaskObserver
                 self::createEmployeeActivity(user()->id, 'task-created', $task->id, 'task');
             }
 
+            // Sync task users
+            if (!empty(request()->user_id) && request()->template_id == '') {
+
+                $task->users()->sync(request()->user_id);
+
+            }
+
             $mentionIds = [];
             $mentionDescriptionMembers = null;
             $unmentionIds = null;
@@ -97,40 +104,6 @@ class TaskObserver
                 $task->mentionUser()->sync(request()->mention_user_ids);
                 $mentionIds = explode(',', request()->mention_user_ids);
                 $mentionDescriptionMembers = User::whereIn('id', $mentionIds)->get();
-
-            }
-
-            if (request()->user_id != null || request()->user_id != '' || request()->has('user_id')) {
-
-                $memberIds = User::whereIn('id',  request()->user_id)->get();
-                event(new TaskEvent($task, $memberIds, 'NewTask'));
-                    
-            }
-
-            if (request()->has('project_id') && request()->project_id != 'all' && request()->project_id != '') {
-                if ((request()->mention_user_id) != null || request()->mention_user_id != '' || $mentionIds != null && $mentionIds != '') {
-
-                    event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMention'));
-                    event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMentionSms'));
-
-                }
-                else {
-
-                    if ($task->project->client_id != null && $task->project->allow_client_notification == 'enable' && $task->project->client->status != 'deactive') {
-                        event(new TaskEvent($task, $task->project->client, 'NewClientTask'));
-                    }
-
-                }
-
-            }
-            else {
-
-                if ((request()->mention_user_id) != null || request()->mention_user_id != '') {
-
-                    event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMention'));
-                    event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMentionSms'));
-
-                }
 
             }
 
@@ -150,11 +123,42 @@ class TaskObserver
             // Log search
             $log->logSearchEntry($task->id, $task->heading, 'tasks.edit', 'task');
 
-            // Sync task users
-            if (!empty(request()->user_id) && request()->template_id == '') {
+            try {
+                if (request()->user_id != null || request()->user_id != '' || request()->has('user_id')) {
 
-                $task->users()->sync(request()->user_id);
+                    $memberIds = User::whereIn('id',  request()->user_id)->get();
+                    event(new TaskEvent($task, $memberIds, 'NewTask'));
+                        
+                }
 
+                if (request()->has('project_id') && request()->project_id != 'all' && request()->project_id != '') {
+                    if ((request()->mention_user_id) != null || request()->mention_user_id != '' || $mentionIds != null && $mentionIds != '') {
+
+                        event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMention'));
+                        event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMentionSms'));
+
+                    }
+                    else {
+
+                        if ($task->project->client_id != null && $task->project->allow_client_notification == 'enable' && $task->project->client->status != 'deactive') {
+                            event(new TaskEvent($task, $task->project->client, 'NewClientTask'));
+                        }
+
+                    }
+
+                }
+                else {
+
+                    if ((request()->mention_user_id) != null || request()->mention_user_id != '') {
+
+                        event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMention'));
+                        event(new TaskEvent($task, $mentionDescriptionMembers, 'TaskMentionSms'));
+
+                    }
+
+                }
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send task event: ' . $e->getMessage());
             }
 
         }
@@ -188,8 +192,12 @@ class TaskObserver
 
             if (!empty($newMention)) {
 
-                event(new TaskEvent($task, $newMentionMembers, 'TaskMention'));
-                event(new TaskEvent($task, $newMentionMembers, 'TaskMentionSms'));
+                try {
+                    event(new TaskEvent($task, $newMentionMembers, 'TaskMention'));
+                    event(new TaskEvent($task, $newMentionMembers, 'TaskMentionSms'));
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to send task mention event: ' . $e->getMessage());
+                }
 
             }
         }
@@ -241,19 +249,23 @@ class TaskObserver
                     $admins = User::allAdmins($task->company->id);
                 }
 
-                // send task complete notification
-                event(new TaskEvent($task, $admins, $notification));
+                try {
+                    // send task complete notification
+                    event(new TaskEvent($task, $admins, $notification));
 
-                if ($task->addedByUser) {
-                    $addedByUserRole = $task->addedByUser->roles->pluck('name')->toArray();
+                    if ($task->addedByUser) {
+                        $addedByUserRole = $task->addedByUser->roles->pluck('name')->toArray();
 
-                    if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $admins->pluck('id')->toArray())) {
-                        event(new TaskEvent($task, $task->addedByUser, $notification));
+                        if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $admins->pluck('id')->toArray())) {
+                            event(new TaskEvent($task, $task->addedByUser, $notification));
+                        }
                     }
-                }
 
-                $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
-                event(new TaskEvent($task, $taskUser, $notification));
+                    $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
+                    event(new TaskEvent($task, $taskUser, $notification));
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to send task status event: ' . $e->getMessage());
+                }
 
                 $timeLogs = ProjectTimeLog::with('user')->whereNull('end_time')
                     ->where('task_id', $task->id)
@@ -292,7 +304,11 @@ class TaskObserver
                     $project = $task->project;
 
                     if ($project->client_id != null && $project->allow_client_notification == 'enable' && $project->client->status != 'deactive') {
-                        event(new TaskEvent($task, $project->client, 'TaskCompletedClient'));
+                        try {
+                            event(new TaskEvent($task, $project->client, 'TaskCompletedClient'));
+                        } catch (\Throwable $e) {
+                            \Log::error('Failed to send task completed client event: ' . $e->getMessage());
+                        }
                     }
                 }
 
@@ -300,24 +316,36 @@ class TaskObserver
 
             if (request('user_id')) {
                 if (($movingTaskId != '' && $task->id == $movingTaskId) || $movingTaskId == '') {
-                    // Send notification to user
-                    event(new TaskEvent($task, $task->users, 'TaskUpdated'));
+                    try {
+                        // Send notification to user
+                        event(new TaskEvent($task, $task->users, 'TaskUpdated'));
+                    } catch (\Throwable $e) {
+                        \Log::error('Failed to send task updated event: ' . $e->getMessage());
+                    }
                 }
             }
         }
 
         /* Add/Update google calendar event */
-        if (!request()->has('repeat') || request()->repeat == 'no' && !is_null($task->due_date)) {
-            $task->event_id = $this->googleCalendarEvent($task);
+        try {
+            if (!request()->has('repeat') || request()->repeat == 'no' && !is_null($task->due_date)) {
+                $task->event_id = $this->googleCalendarEvent($task);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Failed to update google calendar event: ' . $e->getMessage());
         }
 
-        if (pusher_settings()->status == 1 && pusher_settings()->taskboard == 1) {
-            Config::set('queue.default', 'sync'); // Set intentionally for instant delivery of messages
-            Config::set('broadcasting.default', 'pusher'); // Set intentionally for instant delivery of messages
-        }
+        try {
+            if (pusher_settings()->status == 1 && pusher_settings()->taskboard == 1) {
+                Config::set('queue.default', 'sync'); // Set intentionally for instant delivery of messages
+                Config::set('broadcasting.default', 'pusher'); // Set intentionally for instant delivery of messages
+            }
 
-        // Call for Pusher
-        event(new EventsTaskUpdated());
+            // Call for Pusher
+            event(new EventsTaskUpdated());
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send pusher event: ' . $e->getMessage());
+        }
 
         if (\user()) {
             if (($movingTaskId != '' && $task->id == $movingTaskId) || $movingTaskId == '') {

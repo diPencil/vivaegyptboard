@@ -424,172 +424,177 @@ class TaskController extends AccountBaseController
         }
 
         DB::beginTransaction();
-        $ganttTaskArray = [];
-        $gantTaskLinkArray = [];
+        try {
+            $ganttTaskArray = [];
+            $gantTaskLinkArray = [];
 
-        $taskBoardColumn = TaskboardColumn::where('slug', 'incomplete')->first();
-        $task = new Task();
-        $task->heading = $request->heading;
-        $task->description = trim_editor($request->description);
-        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
-        $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
-        $task->due_date = $dueDate;
-        $task->project_id = $request->project_id;
-        $task->task_category_id = $request->category_id;
-        $task->priority = $request->priority;
-        $task->board_column_id = $taskBoardColumn->id;
+            $taskBoardColumn = TaskboardColumn::where('slug', 'incomplete')->first();
+            $task = new Task();
+            $task->heading = $request->heading;
+            $task->description = trim_editor($request->description);
+            $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
+            $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
+            $task->due_date = $dueDate;
+            $task->project_id = $request->project_id;
+            $task->task_category_id = $request->category_id;
+            $task->priority = $request->priority;
+            $task->board_column_id = $taskBoardColumn->id;
 
-        if ($request->has('dependent') && $request->has('dependent_task_id') && $request->dependent_task_id != '') {
-            $dependentTask = Task::findOrFail($request->dependent_task_id);
+            if ($request->has('dependent') && $request->has('dependent_task_id') && $request->dependent_task_id != '') {
+                $dependentTask = Task::findOrFail($request->dependent_task_id);
 
-            if (!is_null($dependentTask->due_date) && !is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
-                /* @phpstan-ignore-line */
-                return Reply::error(__('messages.taskDependentDate'));
+                if (!is_null($dependentTask->due_date) && !is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
+                    DB::rollback();
+                    /* @phpstan-ignore-line */
+                    return Reply::error(__('messages.taskDependentDate'));
+                }
+
+                $task->dependent_task_id = $request->dependent_task_id;
             }
 
-            $task->dependent_task_id = $request->dependent_task_id;
-        }
+            $task->is_private = $request->has('is_private') ? 1 : 0;
+            $task->billable = $request->has('billable') && $request->billable ? 1 : 0;
+            $task->estimate_hours = $request->estimate_hours;
+            $task->estimate_minutes = $request->estimate_minutes;
 
-        $task->is_private = $request->has('is_private') ? 1 : 0;
-        $task->billable = $request->has('billable') && $request->billable ? 1 : 0;
-        $task->estimate_hours = $request->estimate_hours;
-        $task->estimate_minutes = $request->estimate_minutes;
-
-        if ($request->board_column_id) {
-            $task->board_column_id = $request->board_column_id;
-        }
-
-        $waitingApprovalTaskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
-        if($request->board_column_id == $waitingApprovalTaskBoardColumn->id){
-            $task->approval_send = 1;
-        }else{
-            $task->approval_send = 0;
-        }
-
-        if ($request->milestone_id != '') {
-            $task->milestone_id = $request->milestone_id;
-        }
-
-        // Add repeated task
-        $task->repeat = $request->repeat ? 1 : 0;
-
-        if ($project) {
-            $projectLastTaskCount = Task::projectTaskCount($project->id);
-
-            if (isset($project->project_short_code)) {
-                $task->task_short_code = $project->project_short_code . '-' . $this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
+            if ($request->board_column_id) {
+                $task->board_column_id = $request->board_column_id;
             }
-            else{
-                $task->task_short_code = $projectLastTaskCount + 1;
+
+            $waitingApprovalTaskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
+            if($request->board_column_id == $waitingApprovalTaskBoardColumn->id){
+                $task->approval_send = 1;
+            }else{
+                $task->approval_send = 0;
             }
-        }
 
-        $task->save();
+            if ($request->milestone_id != '') {
+                $task->milestone_id = $request->milestone_id;
+            }
 
-        // Save labels
+            // Add repeated task
+            $task->repeat = $request->repeat ? 1 : 0;
 
-        $task->labels()->sync($request->task_labels);
+            if ($project) {
+                $projectLastTaskCount = Task::projectTaskCount($project->id);
 
-
-        if (!is_null($request->taskId)) {
-
-            $taskExists = TaskFile::where('task_id', $request->taskId)->get();
-
-            if ($taskExists) {
-                foreach ($taskExists as $taskExist) {
-                    $file = new TaskFile();
-                    $file->user_id = $taskExist->user_id;
-                    $file->task_id = $task->id;
-
-                    $fileName = Files::generateNewFileName($taskExist->filename);
-
-                    Files::copy(TaskFile::FILE_PATH . '/' . $taskExist->task_id . '/' . $taskExist->hashname, TaskFile::FILE_PATH . '/' . $task->id . '/' . $fileName);
-
-                    $file->filename = $taskExist->filename;
-                    $file->hashname = $fileName;
-                    $file->size = $taskExist->size;
-                    $file->save();
-
-
-                    $this->logTaskActivity($task->id, $this->user->id, 'fileActivity', $task->board_column_id);
+                if (isset($project->project_short_code)) {
+                    $task->task_short_code = $project->project_short_code . '-' . $this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
+                }
+                else{
+                    $task->task_short_code = $projectLastTaskCount + 1;
                 }
             }
 
+            $task->save();
 
-            $subTask = SubTask::with(['files'])->where('task_id', $request->taskId)->get();
+            // Save labels
+
+            $task->labels()->sync($request->task_labels);
 
 
-            if ($subTask) {
-                foreach ($subTask as $subTasks) {
-                    $subTaskData = new SubTask();
-                    $subTaskData->title = $subTasks->title;
-                    $subTaskData->task_id = $task->id;
-                    $subTaskData->description = trim_editor($subTasks->description);
+            if (!is_null($request->taskId)) {
 
-                    if ($subTasks->start_date != '' && $subTasks->due_date != '') {
-                        $subTaskData->start_date = $subTasks->start_date;
-                        $subTaskData->due_date = $subTasks->due_date;
+                $taskExists = TaskFile::where('task_id', $request->taskId)->get();
+
+                if ($taskExists) {
+                    foreach ($taskExists as $taskExist) {
+                        $file = new TaskFile();
+                        $file->user_id = $taskExist->user_id;
+                        $file->task_id = $task->id;
+
+                        $fileName = Files::generateNewFileName($taskExist->filename);
+
+                        Files::copy(TaskFile::FILE_PATH . '/' . $taskExist->task_id . '/' . $taskExist->hashname, TaskFile::FILE_PATH . '/' . $task->id . '/' . $fileName);
+
+                        $file->filename = $taskExist->filename;
+                        $file->hashname = $fileName;
+                        $file->size = $taskExist->size;
+                        $file->save();
+
+
+                        $this->logTaskActivity($task->id, $this->user->id, 'fileActivity', $task->board_column_id);
                     }
+                }
 
-                    $subTaskData->assigned_to = $subTasks->assigned_to;
 
-                    $subTaskData->save();
+                $subTask = SubTask::with(['files'])->where('task_id', $request->taskId)->get();
 
-                    if ($subTasks->files) {
-                        foreach ($subTasks->files as $fileData) {
-                            $file = new SubTaskFile();
-                            $file->user_id = $fileData->user_id;
-                            $file->sub_task_id = $subTaskData->id;
 
-                            $fileName = Files::generateNewFileName($fileData->filename);
+                if ($subTask) {
+                    foreach ($subTask as $subTasks) {
+                        $subTaskData = new SubTask();
+                        $subTaskData->title = $subTasks->title;
+                        $subTaskData->task_id = $task->id;
+                        $subTaskData->description = trim_editor($subTasks->description);
 
-                            Files::copy(SubTaskFile::FILE_PATH . '/' . $fileData->sub_task_id . '/' . $fileData->hashname, SubTaskFile::FILE_PATH . '/' . $subTaskData->id . '/' . $fileName);
+                        if ($subTasks->start_date != '' && $subTasks->due_date != '') {
+                            $subTaskData->start_date = $subTasks->start_date;
+                            $subTaskData->due_date = $subTasks->due_date;
+                        }
 
-                            $file->filename = $fileData->filename;
-                            $file->hashname = $fileName;
-                            $file->size = $fileData->size;
-                            $file->save();
+                        $subTaskData->assigned_to = $subTasks->assigned_to;
+
+                        $subTaskData->save();
+
+                        if ($subTasks->files) {
+                            foreach ($subTasks->files as $fileData) {
+                                $file = new SubTaskFile();
+                                $file->user_id = $fileData->user_id;
+                                $file->sub_task_id = $subTaskData->id;
+
+                                $fileName = Files::generateNewFileName($fileData->filename);
+
+                                Files::copy(SubTaskFile::FILE_PATH . '/' . $fileData->sub_task_id . '/' . $fileData->hashname, SubTaskFile::FILE_PATH . '/' . $subTaskData->id . '/' . $fileName);
+
+                                $file->filename = $fileData->filename;
+                                $file->hashname = $fileName;
+                                $file->size = $fileData->size;
+                                $file->save();
+                            }
                         }
                     }
                 }
             }
+
+            // To add custom fields data
+            if ($request->custom_fields_data) {
+                $task->updateCustomFieldData($request->custom_fields_data);
+            }
+
+            // For gantt chart
+            if ($request->page_name && !is_null($task->due_date) && $request->page_name == 'ganttChart') {
+                $task = Task::find($task->id);
+                $parentGanttId = $request->parent_gantt_id;
+
+                /* @phpstan-ignore-next-line */
+
+                $taskDuration = $task->due_date->diffInDays($task->start_date);
+                /* @phpstan-ignore-line */
+                $taskDuration = $taskDuration + 1;
+
+                $ganttTaskArray[] = [
+                    'id' => $task->id,
+                    'text' => $task->heading,
+                    'start_date' => $task->start_date->format('Y-m-d'), /* @phpstan-ignore-line */
+                    'duration' => $taskDuration,
+                    'parent' => $parentGanttId,
+                    'taskid' => $task->id
+                ];
+
+                $gantTaskLinkArray[] = [
+                    'id' => 'link_' . $task->id,
+                    'source' => $task->dependent_task_id != '' ? $task->dependent_task_id : $parentGanttId,
+                    'target' => $task->id,
+                    'type' => $task->dependent_task_id != '' ? 0 : 1
+                ];
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollback();
+            throw $e;
         }
-
-        // To add custom fields data
-        if ($request->custom_fields_data) {
-            $task->updateCustomFieldData($request->custom_fields_data);
-        }
-
-        // For gantt chart
-        if ($request->page_name && !is_null($task->due_date) && $request->page_name == 'ganttChart') {
-            $task = Task::find($task->id);
-            $parentGanttId = $request->parent_gantt_id;
-
-            /* @phpstan-ignore-next-line */
-
-            $taskDuration = $task->due_date->diffInDays($task->start_date);
-            /* @phpstan-ignore-line */
-            $taskDuration = $taskDuration + 1;
-
-            $ganttTaskArray[] = [
-                'id' => $task->id,
-                'text' => $task->heading,
-                'start_date' => $task->start_date->format('Y-m-d'), /* @phpstan-ignore-line */
-                'duration' => $taskDuration,
-                'parent' => $parentGanttId,
-                'taskid' => $task->id
-            ];
-
-            $gantTaskLinkArray[] = [
-                'id' => 'link_' . $task->id,
-                'source' => $task->dependent_task_id != '' ? $task->dependent_task_id : $parentGanttId,
-                'target' => $task->id,
-                'type' => $task->dependent_task_id != '' ? 0 : 1
-            ];
-        }
-
-
-        DB::commit();
 
         if (request()->add_more == 'true') {
             unset($request->project_id);
@@ -854,7 +859,11 @@ class TaskController extends AccountBaseController
             $newlyAssignedUserIds = array_diff($request->user_id, $taskUsers);
             if (!empty($newlyAssignedUserIds)) {
                 $newUsers = User::whereIn('id', $newlyAssignedUserIds)->get();
-                event(new TaskEvent($task, $newUsers, 'NewTask'));
+                try {
+                    event(new TaskEvent($task, $newUsers, 'NewTask'));
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to send task event: ' . $e->getMessage());
+                }
             }
         }
 

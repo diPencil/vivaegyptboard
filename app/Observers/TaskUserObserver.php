@@ -31,7 +31,11 @@ class TaskUserObserver
         if (!isRunningInConsoleOrSeeding()) {
 
             if(request()->has('template_id')){
-                event(new TaskEvent($taskUser->task, $taskUser->user, 'NewTask'));
+                try {
+                    event(new TaskEvent($taskUser->task, $taskUser->user, 'NewTask'));
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to send task event: ' . $e->getMessage());
+                }
             }
         }
     }

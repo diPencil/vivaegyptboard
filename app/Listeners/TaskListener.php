@@ -28,32 +28,36 @@ class TaskListener
     public function handle(TaskEvent $event)
     {
         if ($event->notificationName) {
-            if ($event->notificationName == 'NewClientTask') {
-                Notification::send($event->notifyUser, new NewClientTask($event->task));
-            }
-            elseif ($event->notificationName == 'NewTask') {
-                Notification::send($event->notifyUser, new NewTask($event->task));
-            }
-            elseif ($event->notificationName == 'TaskUpdated') {
-                Notification::send($event->notifyUser, new TaskUpdated($event->task));
-            }
-            elseif ($event->notificationName == 'TaskStatusUpdated') {
-                Notification::send($event->notifyUser, new TaskStatusUpdated($event->task, user()));
-            }
-            elseif ($event->notificationName == 'TaskApproval') {
-                Notification::send($event->notifyUser, new TaskApproval($event->task, user()));
-            }
-            elseif ($event->notificationName == 'TaskCompleted') {
-                Notification::send($event->notifyUser, new TaskCompleted($event->task, user()));
-            }
-            elseif ($event->notificationName == 'TaskCompletedClient') {
-                Notification::send($event->notifyUser, new TaskCompletedClient($event->task));
-            }
-            elseif ($event->notificationName == 'TaskUpdatedClient') {
-                Notification::send($event->notifyUser, new TaskUpdatedClient($event->task));
-            }
-            elseif ($event->notificationName == 'TaskMention') {
-                Notification::send($event->notifyUser, new TaskMention($event->task));
+            try {
+                if ($event->notificationName == 'NewClientTask') {
+                    Notification::send($event->notifyUser, new NewClientTask($event->task));
+                }
+                elseif ($event->notificationName == 'NewTask') {
+                    Notification::send($event->notifyUser, new NewTask($event->task));
+                }
+                elseif ($event->notificationName == 'TaskUpdated') {
+                    Notification::send($event->notifyUser, new TaskUpdated($event->task));
+                }
+                elseif ($event->notificationName == 'TaskStatusUpdated') {
+                    Notification::send($event->notifyUser, new TaskStatusUpdated($event->task, user()));
+                }
+                elseif ($event->notificationName == 'TaskApproval') {
+                    Notification::send($event->notifyUser, new TaskApproval($event->task, user()));
+                }
+                elseif ($event->notificationName == 'TaskCompleted') {
+                    Notification::send($event->notifyUser, new TaskCompleted($event->task, user()));
+                }
+                elseif ($event->notificationName == 'TaskCompletedClient') {
+                    Notification::send($event->notifyUser, new TaskCompletedClient($event->task));
+                }
+                elseif ($event->notificationName == 'TaskUpdatedClient') {
+                    Notification::send($event->notifyUser, new TaskUpdatedClient($event->task));
+                }
+                elseif ($event->notificationName == 'TaskMention') {
+                    Notification::send($event->notifyUser, new TaskMention($event->task));
+                }
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send task notification: ' . $e->getMessage());
             }
         }
     }
