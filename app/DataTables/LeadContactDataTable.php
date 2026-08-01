@@ -109,7 +109,8 @@ class LeadContactDataTable extends BaseDataTable
         $datatables->addColumn('email', fn($row) => $row->client_email);
         $datatables->addColumn('export_mobile', fn($row) => $row->mobile ?? '--');
         $datatables->addColumn('export_lead_requirements', fn($row) => $row->lead_requirements ?? '--');
-        $datatables->addColumn('export_category', fn($row) => $row->category_name ?? '--');
+        $datatables->addColumn('export_category', fn($row) => $row->category?->category_name ?? $row->category_name ?? '--');
+        $datatables->addColumn('category_name', fn($row) => $row->category?->category_name ?? $row->category_name ?? '--');
 
         $datatables->editColumn('client_name', function ($row) {
             $label = '';
@@ -304,9 +305,8 @@ class LeadContactDataTable extends BaseDataTable
             __('modules.lead.email') => ['data' => 'email', 'name' => 'leads.client_email', 'exportable' => false, 'title' => __('modules.lead.email'), 'visible' => false],
             __('app.lead') . ' ' . __('modules.lead.mobile') => ['data' => 'export_mobile', 'name' => 'mobile', 'title' => __('app.lead') . ' ' . __('modules.lead.mobile'), 'exportable' => true, 'visible' => false],
             __('modules.lead.mobile') => ['data' => 'mobile', 'name' => 'leads.mobile', 'exportable' => false, 'title' => __('modules.lead.mobile')],
-            __('modules.lead.leadCategory') => ['data' => 'export_category', 'name' => 'lead_category.category_name', 'title' => __('modules.lead.leadCategory'), 'exportable' => true, 'visible' => false],
             __('modules.lead.leadRequirements') => ['data' => 'export_lead_requirements', 'name' => 'lead_requirements', 'title' => __('modules.lead.leadRequirements'), 'exportable' => true, 'visible' => false],
-            __('app.owner') => ['data' => 'lead_owner', 'name' => 'lead_owner', 'exportable' => true, 'title' => __('app.owner')],
+            __('app.category') => ['data' => 'category_name', 'name' => 'lead_category.category_name', 'exportable' => true, 'title' => __('app.category')],
             __('app.addedBy') => ['data' => 'added_by', 'name' => 'added_by', 'exportable' => true, 'title' => __('app.addedBy')],
             __('app.createdOn') => ['data' => 'created_at', 'name' => 'leads.created_at', 'title' => __('app.createdOn')],
         ];
