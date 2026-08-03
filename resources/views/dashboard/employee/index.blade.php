@@ -150,7 +150,7 @@
 
                     $defaultShiftID = attendance_Setting()->default_employee_shift;
                     $defaultShift = \App\Models\EmployeeShift::findOrFail($defaultShiftID);
-                    $currentDayOfWeek = $currentDateTime->format('N');
+                    $currentDayOfWeek = (string) $currentDateTime->dayOfWeek;
                     $isDefaultShiftAssignedToday = in_array($currentDayOfWeek, json_decode($defaultShift->office_open_days, true));
 
                     if($leaveApplied != null && ($leaveApplied->duration === 'single' || $leaveApplied->duration === 'multiple') && $currentDateTime->between($start_time, $end_time)){
