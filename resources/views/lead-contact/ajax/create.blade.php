@@ -184,10 +184,10 @@ $addDealPermission = user()->permission('add_deals');
                     </div>
                     @if ($viewLeadCategoryPermission != 'none')
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.label class="my-3" fieldId="category_id" :fieldLabel="__('modules.deal.dealCategory')">
+                            <x-forms.label class="my-3" fieldId="deal_category_id" :fieldLabel="__('modules.deal.dealCategory')">
                             </x-forms.label>
                             <x-forms.input-group>
-                                <select class="form-control select-picker" name="category_id" id="category_id"
+                                <select class="form-control select-picker" name="deal_category_id" id="deal_category_id"
                                     data-live-search="true">
                                     @foreach ($categories as $category)
                                         <option value="{{ $category->id }}">{{ $category->category_name }}
@@ -463,10 +463,10 @@ $addDealPermission = user()->permission('add_deals');
             $('#add_deal').toggleClass('d-none');
         });
 
-        var id = $('#category_id').val();
+        var id = $('#deal_category_id').val();
         if(id != '')
         {
-            getAgents($('#category_id').val());
+            getAgents($('#deal_category_id').val());
         }
 
         function getAgents(categoryId){
@@ -509,7 +509,7 @@ $addDealPermission = user()->permission('add_deals');
 
         getStages($('#pipelineData').val());
 
-        $('#category_id').change(function(){
+        $('#deal_category_id').change(function(){
             var id = $(this).val();
             if(id != '')
             {
@@ -549,7 +549,7 @@ $addDealPermission = user()->permission('add_deals');
         });
 
         $('body').on('click', '.add-lead-agent', function () {
-            var categoryId = $('#category_id').val();
+            var categoryId = $('#deal_category_id').val();
             var url = "{{ route('lead-agent-settings.create').'?categoryId='}}"+categoryId;
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);

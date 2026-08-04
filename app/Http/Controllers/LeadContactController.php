@@ -242,6 +242,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->source_id = $request->source_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
+        $leadContact->category_id = $request->category_id ?: null;
         $leadContact->company_name = $request->company_name;
         $leadContact->website = $request->website;
         $leadContact->address = $request->address;
@@ -379,7 +380,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
         $leadContact->lead_owner = $request->lead_owner;
-        $leadContact->category_id = $request->category_id;
+        $leadContact->category_id = $request->category_id ?: null;
         $leadContact->company_name = $request->company_name;
         $leadContact->website = $request->website;
         $leadContact->address = $request->address;
@@ -509,9 +510,10 @@ class LeadContactController extends AccountBaseController
     private function storeDeal($request, $leadContact)
     {
         $agentId = null;
+        $dealCategoryId = $request->deal_category_id ?: ($request->category_id ?: null);
 
         if (!is_null($request->agent_id)) {
-            $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
+            $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $dealCategoryId)->first();
             $agentId = isset($leadAgent) ? $leadAgent->id : null;
         }
 
@@ -519,7 +521,7 @@ class LeadContactController extends AccountBaseController
         $deal->name = $request->name;
         $deal->lead_id = $leadContact->id;
         $deal->next_follow_up = 'yes';
-        $deal->category_id = $request->category_id;
+        $deal->category_id = $dealCategoryId;
         $deal->deal_watcher = $request->deal_watcher;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;

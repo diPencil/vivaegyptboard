@@ -4,6 +4,7 @@ namespace App\Http\Requests\Lead;
 
 use App\Http\Requests\CoreRequest;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class UpdateRequest extends CoreRequest
 {
@@ -31,6 +32,14 @@ class UpdateRequest extends CoreRequest
             'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
             'mobile' => 'required|string|max:30',
             'lead_requirements' => 'nullable|string|max:5000',
+            'category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lead_category', 'id')->where(function ($query) {
+                    $query->where('company_id', company()->id)
+                        ->orWhereNull('company_id');
+                }),
+            ],
         ];
 
         $rules = $this->customFieldRules($rules);
@@ -46,6 +55,7 @@ class UpdateRequest extends CoreRequest
 
         $attributes['client_name'] = __('app.name');
         $attributes['client_email'] = __('app.email');
+        $attributes['category_id'] = __('modules.lead.leadCategory');
 
         return $attributes;
     }

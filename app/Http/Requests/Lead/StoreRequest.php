@@ -4,6 +4,7 @@ namespace App\Http\Requests\Lead;
 
 use App\Http\Requests\CoreRequest;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends CoreRequest
 {
@@ -33,6 +34,14 @@ class StoreRequest extends CoreRequest
         $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . company()->id;
         $rules['mobile'] = 'required|string|max:30';
         $rules['lead_requirements'] = 'nullable|string|max:5000';
+        $rules['category_id'] = [
+            'nullable',
+            'integer',
+            Rule::exists('lead_category', 'id')->where(function ($query) {
+                $query->where('company_id', company()->id)
+                    ->orWhereNull('company_id');
+            }),
+        ];
 
         if (request()->has('create_deal') && request()->create_deal == 'on') {
             $rules['name'] = 'required';
@@ -40,6 +49,14 @@ class StoreRequest extends CoreRequest
             $rules['stage_id'] = 'required';
             $rules['close_date'] = 'required';
             $rules['value'] = 'required';
+            $rules['deal_category_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('lead_category', 'id')->where(function ($query) {
+                    $query->where('company_id', company()->id)
+                        ->orWhereNull('company_id');
+                }),
+            ];
         }
 
         return $this->customFieldRules($rules);
@@ -56,6 +73,8 @@ class StoreRequest extends CoreRequest
         $attributes['client_email'] = __('app.email');
         $attributes['name'] = __('modules.deal.dealName');
         $attributes['stage_id'] = __('modules.deal.leadStages');
+        $attributes['category_id'] = __('modules.lead.leadCategory');
+        $attributes['deal_category_id'] = __('modules.deal.dealCategory');
 
         return $attributes;
     }
